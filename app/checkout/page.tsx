@@ -81,7 +81,7 @@ export default function CheckoutPage() {
         const encodedMessage = encodeURIComponent(message)
 
         // Create WhatsApp link (replace with your actual phone number)
-        const whatsappLink = `https://wa.me/919876543210?text=${encodedMessage}`
+        const whatsappLink = `https://wa.me/8888756746?text=${encodedMessage}`
 
         // Open WhatsApp in a new tab
         window.open(whatsappLink, "_blank")
