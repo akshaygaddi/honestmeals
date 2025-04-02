@@ -23,6 +23,7 @@ import {
     Loader2,
     Send,
     User,
+    Eye,
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import MealDetailFlyover from "./MealDetailFlyover"
 
 type Meal = {
     id: string
@@ -54,11 +56,16 @@ type Meal = {
     price: number
     calories: number
     protein: number
+    carbs: number
+    fat: number
+    fiber: number | null
     image_url: string | null
     category_id: string
     dietary_type_id: string | null
     food_type: boolean | null
     is_available: boolean
+    spice_level: number | null
+    cooking_time_minutes: number | null
 }
 
 type MealCategory = {
@@ -113,31 +120,35 @@ export default function MealsPage() {
     const [showScrollTop, setShowScrollTop] = useState(false)
     const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
 
+    // New state for meal detail flyover
+    const [selectedMealId, setSelectedMealId] = useState<string | null>(null)
+    const [isMealDetailOpen, setIsMealDetailOpen] = useState(false)
+
     const sortOptions: SortOption[] = [
         {
             label: "Default",
             value: "default",
-            sortFn: (a, b) => a.name.localeCompare(b.name),
+            sortFn: (a: Meal, b: Meal) => a.name.localeCompare(b.name),
         },
         {
             label: "Price: Low to High",
             value: "price_asc",
-            sortFn: (a, b) => a.price - b.price,
+            sortFn: (a: Meal, b: Meal) => a.price - b.price,
         },
         {
             label: "Price: High to Low",
             value: "price_desc",
-            sortFn: (a, b) => b.price - a.price,
+            sortFn: (a: Meal, b: Meal) => b.price - a.price,
         },
         {
             label: "Calories: Low to High",
             value: "calories_asc",
-            sortFn: (a, b) => a.calories - b.calories,
+            sortFn: (a: Meal, b: Meal) => a.calories - b.calories,
         },
         {
             label: "Protein: High to Low",
             value: "protein_desc",
-            sortFn: (a, b) => b.protein - a.protein,
+            sortFn: (a: Meal, b: Meal) => b.protein - a.protein,
         },
     ]
 
@@ -325,13 +336,6 @@ export default function MealsPage() {
         return category ? category.name : "Unknown Category"
     }
 
-    // Get food type name
-    const getFoodTypeName = (foodType: boolean | null) => {
-        if (foodType === true) return "Veg"
-        if (foodType === false) return "Non-Veg"
-        return "Unknown"
-    }
-
     // Clear filters
     const clearFilters = () => {
         setSelectedCategory(null)
@@ -340,6 +344,12 @@ export default function MealsPage() {
         setSearchQuery("")
         setSortOption("default")
         setShowOnlyAvailable(true)
+    }
+
+    // Open meal detail flyover
+    const openMealDetail = (mealId: string) => {
+        setSelectedMealId(mealId)
+        setIsMealDetailOpen(true)
     }
 
     // Handle WhatsApp checkout
@@ -384,7 +394,7 @@ export default function MealsPage() {
                     const { data: order, error: orderError } = await supabase
                         .from("orders")
                         .insert({
-                            user_id: user.id,
+                            customer_id: user.id,
                             total_amount: cartTotal + 40,
                             status: "pending",
                             delivery_address: customerAddress,
@@ -785,6 +795,14 @@ export default function MealsPage() {
                 </DialogContent>
             </Dialog>
 
+            {/* Meal Detail Flyover */}
+            <MealDetailFlyover
+                mealId={selectedMealId}
+                isOpen={isMealDetailOpen}
+                onOpenChange={setIsMealDetailOpen}
+                onAddToCart={addToCart}
+            />
+
             <div className="container mx-auto px-4 py-6">
                 {/* Search and filter bar */}
                 <div className="mb-8 flex flex-col md:flex-row gap-4">
@@ -1062,14 +1080,20 @@ export default function MealsPage() {
                                                 </Badge>
                                             </div>
 
-                                            <Button
-                                                onClick={() => addToCart(meal)}
-                                                className="w-full bg-green-500 hover:bg-green-600 transition-colors"
-                                                disabled={!meal.is_available}
-                                            >
-                                                <Plus className="mr-1 h-4 w-4" />
-                                                Add to Cart
-                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button onClick={() => openMealDetail(meal.id)} variant="outline" className="flex-1">
+                                                    <Eye className="mr-1 h-4 w-4" />
+                                                    Details
+                                                </Button>
+                                                <Button
+                                                    onClick={() => addToCart(meal)}
+                                                    className="flex-1 bg-green-500 hover:bg-green-600 transition-colors"
+                                                    disabled={!meal.is_available}
+                                                >
+                                                    <Plus className="mr-1 h-4 w-4" />
+                                                    Add
+                                                </Button>
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 </motion.div>

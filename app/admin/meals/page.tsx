@@ -1,14 +1,13 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import {
     Dialog,
     DialogContent,
@@ -16,45 +15,54 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { toast } from "react-hot-toast";
-import { Plus, Search, Edit, Trash2, Loader2, Filter, Leaf, Utensils, Check } from "lucide-react";
-import Image from "next/image";
-import { categories } from "@/lib/data";
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { toast } from "react-hot-toast"
+import { Plus, Search, Edit, Trash2, Loader2, Filter, Leaf, Utensils, Eye } from "lucide-react"
+import Image from "next/image"
+import AddMealForm from "@/components/admin/add-meal-form"
+import MealDetailView from "@/components/admin/meal-detail-view"
 
 type Meal = {
-    id: string;
-    name: string;
-    description: string | null;
-    price: number;
-    calories: number;
-    protein: number;
-    image_url: string | null;
-    category_id: string;
-    food_type: boolean | null;
-    is_available: boolean;
-    // Add these if you plan to use them
-    dietary_type_id?: string | null;
-    created_at?: string;
-    updated_at?: string;
-};
+    id: string
+    name: string
+    description: string | null
+    price: number
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+    fiber: number | null
+    image_url: string | null
+    category_id: string
+    dietary_type_id: string | null
+    food_type: boolean | null
+    is_available: boolean
+    spice_level: number | null
+    cooking_time_minutes: number | null
+}
 
 type MealCategory = {
-    id: string;
-    name: string;
-};
+    id: string
+    name: string
+}
+
+type DietaryType = {
+    id: string
+    name: string
+}
 
 export default function AdminMeals() {
-    const router = useRouter();
-    const supabase = createClient();
+    const router = useRouter()
+    const supabase = createClient()
 
     const [loading, setLoading] = useState(true);
     const [meals, setMeals] = useState<Meal[]>([]);
     const [filteredMeals, setFilteredMeals] = useState<Meal[]>([]);
+    const [categories, setCategories] = useState<MealCategory[]>([]);
+    const [dietaryTypes, setDietaryTypes] = useState<DietaryType[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [selectedFoodType, setSelectedFoodType] = useState<boolean | null>(null);
@@ -63,33 +71,48 @@ export default function AdminMeals() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentMeal, setCurrentMeal] = useState<Meal | null>(null);
-
-    const [formData, setFormData] = useState({
-        name: "",
-        description: "",
-        price: "",
-        calories: "",
-        protein: "",
-        image_url: "",
-        category_id: "",
-        food_type: true,
-        is_available: true,
-    });
+    const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchData() {
             setLoading(true);
             try {
-                const { data: mealsData, error: mealsError } = await supabase.from("meals").select("*").order("name");
-                if (mealsError) {
-                    console.error("Error fetching meals:", mealsError);
-                    toast.error("Failed to load meals");
-                } else {
-                    setMeals(mealsData || []);
-                    setFilteredMeals(mealsData || []);
-                }
+                // Fetch meals
+                const { data: mealsData, error: mealsError } = await supabase
+                    .from("meals")
+                    .select("*")
+                    .order("name");
+
+                if (mealsError) throw mealsError;
+                setMeals(mealsData || []);
+
+
+                // Fetch categories
+                const { data: categoriesData, error: categoriesError } = await supabase
+                    .from("meal_categories")
+                    .select("*")
+                    .order("name");
+
+
+                if (categoriesError) throw categoriesError;
+                setCategories(categoriesData || []);
+
+                // Fetch dietary types
+                const { data: dietaryTypesData, error: dietaryTypesError } = await supabase
+                    .from("dietary_types")
+                    .select("*")
+                    .order("name");
+
+                if (dietaryTypesError) throw dietaryTypesError;
+                setDietaryTypes(dietaryTypesData || []);
+
+                // Log to debug
+                console.log("Fetched Meals:", mealsData);
+                console.log("Fetched Categories:", categoriesData);
+                console.log("Fetched Dietary Types:", dietaryTypesData);
             } catch (error) {
                 console.error("Error fetching data:", error);
                 toast.error("An error occurred while loading data");
@@ -97,212 +120,216 @@ export default function AdminMeals() {
                 setLoading(false);
             }
         }
+
         fetchData();
     }, [supabase]);
 
     useEffect(() => {
-        let filtered = [...meals];
+        let filtered = [...meals]
         if (searchQuery.trim() !== "") {
-            const query = searchQuery.toLowerCase();
+            const query = searchQuery.toLowerCase()
             filtered = filtered.filter(
                 (meal) =>
                     meal.name.toLowerCase().includes(query) ||
                     (meal.description && meal.description.toLowerCase().includes(query)),
-            );
+            )
         }
         if (selectedCategory) {
-            filtered = filtered.filter((meal) => meal.category_id === selectedCategory);
+            filtered = filtered.filter((meal) => meal.category_id === selectedCategory)
         }
         if (selectedFoodType !== null) {
-            filtered = filtered.filter((meal) => meal.food_type === selectedFoodType);
+            filtered = filtered.filter((meal) => meal.food_type === selectedFoodType)
         }
         if (showOnlyAvailable) {
-            filtered = filtered.filter((meal) => meal.is_available);
+            filtered = filtered.filter((meal) => meal.is_available)
         }
-        setFilteredMeals(filtered);
-    }, [meals, searchQuery, selectedCategory, selectedFoodType, showOnlyAvailable]);
+        setFilteredMeals(filtered)
+    }, [meals, searchQuery, selectedCategory, selectedFoodType, showOnlyAvailable])
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
-    };
-
-    const handleSelectChange = (name: string, value: string) => {
-        setFormData({ ...formData, [name]: value });
-    };
-
-    const handleSwitchChange = (name: string, checked: boolean) => {
-        setFormData({ ...formData, [name]: checked });
-    };
-
-    const resetForm = () => {
-        setFormData({
-            name: "",
-            description: "",
-            price: "",
-            calories: "",
-            protein: "",
-            image_url: "",
-            category_id: "",
-            food_type: true,
-            is_available: true,
-        });
-    };
-
-    const handleAddMeal = async () => {
-        if (!formData.name || !formData.price || !formData.calories || !formData.protein || !formData.category_id) {
-            toast.error("Please fill in all required fields");
-            return;
-        }
-
+    const handleAddMeal = async (formData: any) => {
         setIsSubmitting(true);
-
         try {
-            const { data, error } = await supabase.from("meals").insert({
-                name: formData.name,
-                description: formData.description || null,
-                price: Number.parseFloat(formData.price),
-                calories: Number.parseInt(formData.calories),
-                protein: Number.parseFloat(formData.protein),
-                image_url: formData.image_url || null,
-                category_id: formData.category_id, // This must be a valid UUID
-                food_type: formData.food_type,
-                is_available: formData.is_available,
-                // dietary_type_id: null, // Uncomment and set if you add this field to formData
-            });
+            const { data: mealData, error: mealError } = await supabase
+                .from("meals")
+                .insert({
+                    name: formData.name,
+                    description: formData.description || null,
+                    price: formData.price,
+                    calories: formData.calories,
+                    protein: formData.protein,
+                    carbs: formData.carbs || null,
+                    fat: formData.fat || null,
+                    fiber: formData.fiber || null,
+                    image_url: formData.image_url || null,
+                    category_id: formData.category_id,
+                    dietary_type_id: formData.dietary_type_id || null,
+                    food_type: formData.food_type,
+                    is_available: formData.is_available ?? true,
+                    spice_level: formData.spice_level || null,
+                    cooking_time_minutes: formData.cooking_time_minutes || null,
+                })
+                .select()
+                .single();
 
-            if (error) {
-                console.error("Error adding meal:", error);
-                toast.error("Failed to add meal");
-            } else {
-                toast.success("Meal added successfully");
-                setIsAddDialogOpen(false);
+            if (mealError) throw mealError;
 
-                const { data: mealsData } = await supabase.from("meals").select("*").order("name");
-                setMeals(mealsData || []);
-            }
+            toast.success("Meal added successfully");
+            setIsAddDialogOpen(false);
+
+            const { data: mealsData } = await supabase.from("meals").select("*").order("name");
+            setMeals(mealsData || []);
         } catch (error) {
             console.error("Error adding meal:", error);
             toast.error("An error occurred while adding the meal");
         } finally {
             setIsSubmitting(false);
-            resetForm();
         }
     };
 
     const handleEditMeal = (meal: Meal) => {
         setCurrentMeal(meal);
-        setFormData({
-            name: meal.name,
-            description: meal.description || "",
-            price: meal.price.toString(),
-            calories: meal.calories.toString(),
-            protein: meal.protein.toString(),
-            image_url: meal.image_url || "",
-            category_id: meal.category_id,
-            food_type: meal.food_type !== null ? meal.food_type : true,
-            is_available: meal.is_available,
-        });
         setIsEditDialogOpen(true);
     };
 
-    const handleUpdateMeal = async () => {
-        if (!currentMeal) return;
+    const handleUpdateMeal = async (formData: any) => {
+        if (!currentMeal) return
 
-        if (!formData.name || !formData.price || !formData.calories || !formData.protein || !formData.category_id) {
-            toast.error("Please fill in all required fields");
-            return;
-        }
-
-        setIsSubmitting(true);
+        setIsSubmitting(true)
 
         try {
-            const { error } = await supabase
+            // Update the meal
+            const { error: mealError } = await supabase
                 .from("meals")
                 .update({
                     name: formData.name,
                     description: formData.description || null,
-                    price: Number.parseFloat(formData.price),
-                    calories: Number.parseInt(formData.calories),
-                    protein: Number.parseFloat(formData.protein),
+                    price: formData.price,
+                    calories: formData.calories,
+                    protein: formData.protein,
+                    carbs: formData.carbs,
+                    fat: formData.fat,
+                    fiber: formData.fiber || null,
                     image_url: formData.image_url || null,
                     category_id: formData.category_id,
+                    dietary_type_id: formData.dietary_type_id || null,
                     food_type: formData.food_type,
                     is_available: formData.is_available,
+                    spice_level: formData.spice_level || null,
+                    cooking_time_minutes: formData.cooking_time_minutes || null,
                 })
-                .eq("id", currentMeal.id);
+                .eq("id", currentMeal.id)
 
-            if (error) {
-                console.error("Error updating meal:", error);
-                toast.error("Failed to update meal");
-            } else {
-                toast.success("Meal updated successfully");
-                setIsEditDialogOpen(false);
-
-                const { data: mealsData } = await supabase.from("meals").select("*").order("name");
-                setMeals(mealsData || []);
+            if (mealError) {
+                throw mealError
             }
+
+            // Delete existing meal ingredients
+            const { error: deleteError } = await supabase.from("meal_ingredients").delete().eq("meal_id", currentMeal.id)
+
+            if (deleteError) {
+                throw deleteError
+            }
+
+            // Insert new meal ingredients
+            if (formData.ingredients && formData.ingredients.length > 0) {
+                const mealIngredients = formData.ingredients.map((item: any) => ({
+                    meal_id: currentMeal.id,
+                    ingredient_id: item.ingredient_id,
+                    quantity_grams: item.quantity_grams,
+                }))
+
+                const { error: ingredientsError } = await supabase.from("meal_ingredients").insert(mealIngredients)
+
+                if (ingredientsError) {
+                    throw ingredientsError
+                }
+            }
+
+            toast.success("Meal updated successfully")
+            setIsEditDialogOpen(false)
+
+            // Refresh meals list
+            const { data: mealsData } = await supabase.from("meals").select("*").order("name")
+            setMeals(mealsData || [])
         } catch (error) {
-            console.error("Error updating meal:", error);
-            toast.error("An error occurred while updating the meal");
+            console.error("Error updating meal:", error)
+            toast.error("An error occurred while updating the meal")
         } finally {
-            setIsSubmitting(false);
-            resetForm();
-            setCurrentMeal(null);
+            setIsSubmitting(false)
+            setCurrentMeal(null)
         }
-    };
+    }
 
     const handleDeleteClick = (meal: Meal) => {
-        setCurrentMeal(meal);
-        setIsDeleteDialogOpen(true);
-    };
+        setCurrentMeal(meal)
+        setIsDeleteDialogOpen(true)
+    }
 
     const handleDeleteMeal = async () => {
-        if (!currentMeal) return;
+        if (!currentMeal) return
 
-        setIsSubmitting(true);
+        setIsSubmitting(true)
 
         try {
-            const { error } = await supabase.from("meals").delete().eq("id", currentMeal.id);
+            // Delete meal ingredients first (due to foreign key constraints)
+            const { error: ingredientsError } = await supabase.from("meal_ingredients").delete().eq("meal_id", currentMeal.id)
 
-            if (error) {
-                console.error("Error deleting meal:", error);
-                toast.error("Failed to delete meal");
-            } else {
-                toast.success("Meal deleted successfully");
-                setIsDeleteDialogOpen(false);
-
-                const { data: mealsData } = await supabase.from("meals").select("*").order("name");
-                setMeals(mealsData || []);
+            if (ingredientsError) {
+                throw ingredientsError
             }
+
+            // Then delete the meal
+            const { error: mealError } = await supabase.from("meals").delete().eq("id", currentMeal.id)
+
+            if (mealError) {
+                throw mealError
+            }
+
+            toast.success("Meal deleted successfully")
+            setIsDeleteDialogOpen(false)
+
+            // Refresh meals list
+            const { data: mealsData } = await supabase.from("meals").select("*").order("name")
+            setMeals(mealsData || [])
         } catch (error) {
-            console.error("Error deleting meal:", error);
-            toast.error("An error occurred while deleting the meal");
+            console.error("Error deleting meal:", error)
+            toast.error("An error occurred while deleting the meal")
         } finally {
-            setIsSubmitting(false);
-            setCurrentMeal(null);
+            setIsSubmitting(false)
+            setCurrentMeal(null)
         }
-    };
+    }
+
+    const handleViewMeal = (mealId: string) => {
+        setSelectedMealId(mealId)
+        setIsDetailViewOpen(true)
+    }
 
     const getCategoryName = (categoryId: string) => {
-        const category = categories.find((cat) => cat.id === categoryId);
-        return category ? category.name : "Unknown Category";
-    };
+        const category = categories.find((cat) => cat.id === categoryId)
+        return category ? category.name : "Unknown Category"
+    }
+
+    if (isDetailViewOpen && selectedMealId) {
+        return (
+            <MealDetailView
+                mealId={selectedMealId}
+                onBack={() => {
+                    setIsDetailViewOpen(false)
+                    setSelectedMealId(null)
+                }}
+            />
+        )
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Meals Management</h1>
-                    <p className="text-muted-foreground">Manage your menu items</p>
+                    <p className="text-muted-foreground">Manage your menu items with detailed nutritional information</p>
                 </div>
-                <Button
-                    onClick={() => {
-                        resetForm();
-                        setIsAddDialogOpen(true);
-                    }}
-                    className="bg-green-500 hover:bg-green-600"
-                >
+                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-green-500 hover:bg-green-600">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Meal
                 </Button>
@@ -321,7 +348,10 @@ export default function AdminMeals() {
                                 className="pl-10 bg-white border-gray-200"
                             />
                         </div>
-                        <Select value={selectedCategory || ""} onValueChange={(value) => setSelectedCategory(value || null)}>
+                        <Select
+                            value={selectedCategory || "all"}
+                            onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
+                        >
                             <SelectTrigger className="w-full md:w-[200px]">
                                 <SelectValue placeholder="All Categories" />
                             </SelectTrigger>
@@ -337,9 +367,9 @@ export default function AdminMeals() {
                         <Select
                             value={selectedFoodType === null ? "" : selectedFoodType ? "veg" : "non-veg"}
                             onValueChange={(value) => {
-                                if (value === "") setSelectedFoodType(null);
-                                else if (value === "veg") setSelectedFoodType(true);
-                                else setSelectedFoodType(false);
+                                if (value === "") setSelectedFoodType(null)
+                                else if (value === "veg") setSelectedFoodType(true)
+                                else setSelectedFoodType(false)
                             }}
                         >
                             <SelectTrigger className="w-full md:w-[200px]">
@@ -375,13 +405,7 @@ export default function AdminMeals() {
                             </div>
                             <h3 className="text-lg font-medium text-gray-700 mb-2">No meals found</h3>
                             <p className="text-gray-500 mb-4">Try adjusting your filters or add a new meal</p>
-                            <Button
-                                onClick={() => {
-                                    resetForm();
-                                    setIsAddDialogOpen(true);
-                                }}
-                                className="bg-green-500 hover:bg-green-600"
-                            >
+                            <Button onClick={() => setIsAddDialogOpen(true)} className="bg-green-500 hover:bg-green-600">
                                 <Plus className="mr-2 h-4 w-4" />
                                 Add Meal
                             </Button>
@@ -448,6 +472,14 @@ export default function AdminMeals() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end space-x-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => handleViewMeal(meal.id)}
+                                                        className="text-blue-500 hover:text-blue-600"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
                                                     <Button variant="outline" size="icon" onClick={() => handleEditMeal(meal)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
@@ -470,310 +502,58 @@ export default function AdminMeals() {
                 </CardContent>
             </Card>
 
+            {/*// Dialog for Adding*/}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-[900px]">
                     <DialogHeader>
                         <DialogTitle>Add New Meal</DialogTitle>
-                        <DialogDescription>Add a new meal to your menu. Fill in all the required fields.</DialogDescription>
+                        <DialogDescription>Add a new meal with detailed nutritional information.</DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Meal Name *</Label>
-                                <Input
-                                    id="name"
-                                    name="name"
-                                    placeholder="Enter meal name"
-                                    value={formData.name}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="category_id">Category *</Label>
-                                <Select
-                                    value={formData.category_id}
-                                    onValueChange={(value) => handleSelectChange("category_id", value)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {categories.map((category) => (
-                                            <SelectItem key={category.id} value={category.id}>
-                                                {category.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Textarea
-                                id="description"
-                                name="description"
-                                placeholder="Enter meal description"
-                                value={formData.description}
-                                onChange={handleInputChange}
-                                rows={3}
-                            />
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="price">Price (₹) *</Label>
-                                <Input
-                                    id="price"
-                                    name="price"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={formData.price}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="calories">Calories *</Label>
-                                <Input
-                                    id="calories"
-                                    name="calories"
-                                    type="number"
-                                    placeholder="0"
-                                    value={formData.calories}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="protein">Protein (g) *</Label>
-                                <Input
-                                    id="protein"
-                                    name="protein"
-                                    type="number"
-                                    step="0.1"
-                                    placeholder="0.0"
-                                    value={formData.protein}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="image_url">Image URL</Label>
-                            <Input
-                                id="image_url"
-                                name="image_url"
-                                placeholder="Enter image URL"
-                                value={formData.image_url}
-                                onChange={handleInputChange}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="food_type"
-                                    checked={formData.food_type}
-                                    onCheckedChange={(checked) => handleSwitchChange("food_type", checked)}
-                                />
-                                <Label htmlFor="food_type" className="flex items-center">
-                                    {formData.food_type ? (
-                                        <>
-                                            <Leaf className="mr-2 h-4 w-4 text-green-500" />
-                                            Vegetarian
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Utensils className="mr-2 h-4 w-4 text-red-500" />
-                                            Non-Vegetarian
-                                        </>
-                                    )}
-                                </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="is_available"
-                                    checked={formData.is_available}
-                                    onCheckedChange={(checked) => handleSwitchChange("is_available", checked)}
-                                />
-                                <Label htmlFor="is_available">Available for Order</Label>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                resetForm();
-                                setIsAddDialogOpen(false);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button onClick={handleAddMeal} className="bg-green-500 hover:bg-green-600" disabled={isSubmitting}>
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Adding...
-                                </>
-                            ) : (
-                                <>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Meal
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
+                    <AddMealForm
+                        onSubmit={handleAddMeal}
+                        onCancel={() => setIsAddDialogOpen(false)}
+                        isSubmitting={isSubmitting}
+                        categories={categories}
+                        dietaryTypes={dietaryTypes}
+                    />
                 </DialogContent>
             </Dialog>
 
+            {/*// Dialog for Editing*/}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-[900px]">
                     <DialogHeader>
                         <DialogTitle>Edit Meal</DialogTitle>
-                        <DialogDescription>Update the meal details. Fill in all the required fields.</DialogDescription>
+                        <DialogDescription>Update the meal details and nutritional information.</DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-name">Meal Name *</Label>
-                                <Input
-                                    id="edit-name"
-                                    name="name"
-                                    placeholder="Enter meal name"
-                                    value={formData.name}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-category_id">Category *</Label>
-                                <Select
-                                    value={formData.category_id}
-                                    onValueChange={(value) => handleSelectChange("category_id", value)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {categories.map((category) => (
-                                            <SelectItem key={category.id} value={category.id}>
-                                                {category.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-description">Description</Label>
-                            <Textarea
-                                id="edit-description"
-                                name="description"
-                                placeholder="Enter meal description"
-                                value={formData.description}
-                                onChange={handleInputChange}
-                                rows={3}
-                            />
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-price">Price (₹) *</Label>
-                                <Input
-                                    id="edit-price"
-                                    name="price"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={formData.price}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-calories">Calories *</Label>
-                                <Input
-                                    id="edit-calories"
-                                    name="calories"
-                                    type="number"
-                                    placeholder="0"
-                                    value={formData.calories}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-protein">Protein (g) *</Label>
-                                <Input
-                                    id="edit-protein"
-                                    name="protein"
-                                    type="number"
-                                    step="0.1"
-                                    placeholder="0.0"
-                                    value={formData.protein}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-image_url">Image URL</Label>
-                            <Input
-                                id="edit-image_url"
-                                name="image_url"
-                                placeholder="Enter image URL"
-                                value={formData.image_url}
-                                onChange={handleInputChange}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="edit-food_type"
-                                    checked={formData.food_type}
-                                    onCheckedChange={(checked) => handleSwitchChange("food_type", checked)}
-                                />
-                                <Label htmlFor="edit-food_type" className="flex items-center">
-                                    {formData.food_type ? (
-                                        <>
-                                            <Leaf className="mr-2 h-4 w-4 text-green-500" />
-                                            Vegetarian
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Utensils className="mr-2 h-4 w-4 text-red-500" />
-                                            Non-Vegetarian
-                                        </>
-                                    )}
-                                </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="edit-is_available"
-                                    checked={formData.is_available}
-                                    onCheckedChange={(checked) => handleSwitchChange("is_available", checked)}
-                                />
-                                <Label htmlFor="edit-is_available">Available for Order</Label>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                resetForm();
-                                setIsEditDialogOpen(false);
-                                setCurrentMeal(null);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button onClick={handleUpdateMeal} className="bg-green-500 hover:bg-green-600" disabled={isSubmitting}>
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Updating...
-                                </>
-                            ) : (
-                                <>
-                                    <Check className="mr-2 h-4 w-4" />
-                                    Update Meal
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
+                    <AddMealForm
+                        initialData={currentMeal ? {
+                            id: currentMeal.id,
+                            name: currentMeal.name,
+                            description: currentMeal.description || null,
+                            price: currentMeal.price,
+                            calories: currentMeal.calories,
+                            protein: currentMeal.protein,
+                            carbs: currentMeal.carbs || null,
+                            fat: currentMeal.fat || null,
+                            fiber: currentMeal.fiber || null,
+                            image_url: currentMeal.image_url || null,
+                            category_id: currentMeal.category_id,
+                            dietary_type_id: currentMeal.dietary_type_id || null,
+                            food_type: currentMeal.food_type || null,
+                            is_available: currentMeal.is_available ?? true,
+                            spice_level: currentMeal.spice_level || null,
+                            cooking_time_minutes: currentMeal.cooking_time_minutes || null,
+                        } : undefined}
+                        onSubmit={handleUpdateMeal}
+                        onCancel={() => {
+                            setIsEditDialogOpen(false);
+                            setCurrentMeal(null);
+                        }}
+                        isSubmitting={isSubmitting}
+                        categories={categories}
+                        dietaryTypes={dietaryTypes}
+                    />
                 </DialogContent>
             </Dialog>
 
@@ -815,8 +595,8 @@ export default function AdminMeals() {
                         <Button
                             variant="outline"
                             onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setCurrentMeal(null);
+                                setIsDeleteDialogOpen(false)
+                                setCurrentMeal(null)
                             }}
                         >
                             Cancel
@@ -838,5 +618,6 @@ export default function AdminMeals() {
                 </DialogContent>
             </Dialog>
         </div>
-    );
+    )
 }
+
