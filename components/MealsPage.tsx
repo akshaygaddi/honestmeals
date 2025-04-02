@@ -344,6 +344,7 @@ export default function MealsPage() {
 
     // Handle WhatsApp checkout
     const handleWhatsAppCheckout = async () => {
+        // Validate cart and required fields
         if (cart.length === 0) {
             toast.error("Your cart is empty")
             return
@@ -352,125 +353,84 @@ export default function MealsPage() {
         setIsSubmitting(true)
 
         try {
-            // Get user ID from Supabase auth
+            // Get user data from Supabase if authenticated
             const {
                 data: { user },
             } = await supabase.auth.getUser()
 
-            // Try to fetch profile data if user is authenticated
+            // If user is authenticated, try to get or update profile data
             if (user) {
                 const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
                 if (profile) {
-                    // Update form with profile data if available
+                    // Use profile data if available, otherwise keep current values
                     setCustomerName(profile.full_name || customerName)
                     setCustomerPhone(profile.phone_number || customerPhone)
                     setCustomerAddress(profile.address || customerAddress)
                 }
-            }
 
-            // Save user data to localStorage
-            const updatedUserData = {
-                name: customerName,
-                phone: customerPhone,
-                address: customerAddress,
-            }
-            localStorage.setItem("honestMealsUser", JSON.stringify(updatedUserData))
-
-            // Continue with the rest of the checkout process...
-
-            if (!customerName || !customerPhone || !customerAddress) {
-                toast.error("Please fill in all required fields")
-                return
-            }
-
-            // Save user data to localStorage
-            // const userData = {
-            //   name: customerName,
-            //   phone: customerPhone,
-            //   address: customerAddress,
-            // }
-            // localStorage.setItem("honestMealsUser", JSON.stringify(userData))
-
-            try {
-                // Get user ID from Supabase auth
-                const {
-                    data: { user },
-                } = await supabase.auth.getUser()
-
-                if (!user) {
-                    // If no authenticated user, create a guest order
-                    createWhatsAppOrder()
-                    return
-                }
-
-                // Check if profile exists
-                const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-                // If profile doesn't exist, create it
-                if (!profile) {
-                    await supabase.from("profiles").insert({
+                // Save order to database for authenticated users
+                try {
+                    // Update profile with latest information
+                    await supabase.from("profiles").upsert({
                         id: user.id,
                         full_name: customerName,
                         phone_number: customerPhone,
                         address: customerAddress,
                         updated_at: new Date().toISOString(),
                     })
-                } else {
-                    // Update profile if it exists
-                    await supabase
-                        .from("profiles")
-                        .update({
-                            full_name: customerName,
-                            phone_number: customerPhone,
-                            address: customerAddress,
-                            updated_at: new Date().toISOString(),
+
+                    // Create order record
+                    const { data: order, error: orderError } = await supabase
+                        .from("orders")
+                        .insert({
+                            user_id: user.id,
+                            total_amount: cartTotal + 40,
+                            status: "pending",
+                            delivery_address: customerAddress,
+                            notes: customerNote || null,
+                            payment_method: "COD",
                         })
-                        .eq("id", user.id)
+                        .select()
+
+                    if (orderError) {
+                        console.error("Error creating order:", orderError)
+                        // Continue with WhatsApp even if DB fails
+                    } else if (order && order.length > 0) {
+                        // Create order items
+                        const orderItems = cart.map((item) => ({
+                            order_id: order[0].id,
+                            meal_id: item.id,
+                            quantity: item.quantity,
+                            unit_price: item.price,
+                            total_price: item.price * item.quantity,
+                        }))
+
+                        await supabase.from("order_items").insert(orderItems)
+                    }
+                } catch (dbError) {
+                    console.error("Database error during checkout:", dbError)
+                    // Continue with WhatsApp even if DB operations fail
                 }
-
-                // Create order in database
-                const { data: order, error: orderError } = await supabase
-                    .from("orders")
-                    .insert({
-                        user_id: user.id,
-                        total_amount: cartTotal + 40,
-                        status: "pending",
-                        delivery_address: customerAddress,
-                        notes: customerNote || null,
-                        payment_method: "COD",
-                    })
-                    .select()
-
-                if (orderError) {
-                    console.error("Error creating order:", orderError)
-                    toast.error("Failed to create order")
-                    setIsSubmitting(false)
-                    return
-                }
-
-                // Create order items
-                const orderItems = cart.map((item) => ({
-                    order_id: order[0].id,
-                    meal_id: item.id,
-                    quantity: item.quantity,
-                    unit_price: item.price,
-                    total_price: item.price * item.quantity,
-                }))
-
-                const { error: itemsError } = await supabase.from("order_items").insert(orderItems)
-
-                if (itemsError) {
-                    console.error("Error creating order items:", itemsError)
-                }
-
-                // Send WhatsApp message
-                createWhatsAppOrder()
-            } catch (error) {
-                console.error("Error during checkout:", error)
-                toast.error("An error occurred during checkout")
-                setIsSubmitting(false)
             }
+
+            // Validate required fields before proceeding
+            if (!customerName || !customerPhone || !customerAddress) {
+                toast.error("Please fill in all required fields")
+                setIsSubmitting(false)
+                return
+            }
+
+            // Save user data to localStorage for future use
+            const userData = {
+                name: customerName,
+                phone: customerPhone,
+                address: customerAddress,
+            }
+            localStorage.setItem("honestMealsUser", JSON.stringify(userData))
+
+            // Send order to WhatsApp
+            createWhatsAppOrder()
         } catch (error) {
             console.error("Error during checkout:", error)
             toast.error("An error occurred during checkout")
@@ -479,43 +439,56 @@ export default function MealsPage() {
     }
 
     const createWhatsAppOrder = () => {
-        // Format the order message
-        let message = `*New Order from Honest Meals*\n\n`
+        try {
+            // Format the order message
+            let message = `*New Order from Honest Meals*\n\n`
 
-        message += `*Name:* ${customerName}\n`
-        message += `*Phone:* ${customerPhone}\n`
-        message += `*Address:* ${customerAddress}\n`
+            // Customer details
+            message += `*Customer Details:*\n`
+            message += `*Name:* ${customerName}\n`
+            message += `*Phone:* ${customerPhone}\n`
+            message += `*Address:* ${customerAddress}\n`
 
-        message += `\n*Order Details:*\n`
+            // Order items
+            message += `\n*Order Details:*\n`
+            cart.forEach((item, index) => {
+                message += `${index + 1}. ${item.name} x ${item.quantity} - ₹${(item.price * item.quantity).toFixed(2)}\n`
+            })
 
-        cart.forEach((item, index) => {
-            message += `${index + 1}. ${item.name} x ${item.quantity} - ₹${(item.price * item.quantity).toFixed(2)}\n`
-        })
+            // Order totals
+            message += `\n*Subtotal:* ₹${cartTotal.toFixed(2)}\n`
+            message += `*Delivery Fee:* ₹40.00\n`
+            message += `*Total:* ₹${(cartTotal + 40).toFixed(2)}\n`
 
-        message += `\n*Subtotal:* ₹${cartTotal.toFixed(2)}\n`
-        message += `*Delivery Fee:* ₹40.00\n`
-        message += `*Total:* ₹${(cartTotal + 40).toFixed(2)}\n`
+            // Add note if provided
+            if (customerNote) {
+                message += `\n*Special Instructions:* ${customerNote}\n`
+            }
 
-        if (customerNote) {
-            message += `\n*Note:* ${customerNote}\n`
+            // Add order timestamp
+            message += `\n*Order Time:* ${new Date().toLocaleString()}\n`
+
+            // Encode the message for WhatsApp
+            const encodedMessage = encodeURIComponent(message)
+
+            // Create WhatsApp link with business phone number
+            const whatsappLink = `https://wa.me/918888756746?text=${encodedMessage}`
+
+            // Open WhatsApp in a new tab
+            window.open(whatsappLink, "_blank")
+
+            // Reset state after successful order
+            setIsSubmitting(false)
+            setIsCheckoutOpen(false)
+            setIsCartOpen(false)
+            setCart([])
+
+            toast.success("Order sent to WhatsApp!")
+        } catch (error) {
+            console.error("Error sending to WhatsApp:", error)
+            toast.error("Failed to send order to WhatsApp")
+            setIsSubmitting(false)
         }
-
-        // Encode the message for WhatsApp
-        const encodedMessage = encodeURIComponent(message)
-
-        // Create WhatsApp link (replace with your actual phone number)
-        const whatsappLink = `https://wa.me/918888756746?text=${encodedMessage}`
-
-        // Open WhatsApp in a new tab
-        window.open(whatsappLink, "_blank")
-
-        setIsSubmitting(false)
-        setIsCheckoutOpen(false)
-        setIsCartOpen(false)
-
-        // Clear cart after successful order
-        setCart([])
-        toast.success("Order sent to WhatsApp!")
     }
 
     return (
