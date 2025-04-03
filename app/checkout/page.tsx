@@ -1,34 +1,54 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Send, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "react-hot-toast"
+import { ArrowLeft, CreditCard, Loader2, ShoppingBag, Truck } from "lucide-react"
+import { createOrder } from "@/app/actions/order-actions"
 
 type CartItem = {
     id: string
     name: string
+    description: string | null
     price: number
-    quantity: number
     calories: number
     protein: number
+    carbs: number
+    fat: number
+    fiber: number | null
+    image_url: string | null
+    category_id: string
+    dietary_type_id: string | null
+    food_type: boolean | null
+    is_available: boolean
+    spice_level: number | null
+    cooking_time_minutes: number | null
+    quantity: number
 }
 
 export default function CheckoutPage() {
     const router = useRouter()
+    const supabase = createClient()
+
     const [cart, setCart] = useState<CartItem[]>([])
-    const [name, setName] = useState("")
-    const [phone, setPhone] = useState("")
-    const [address, setAddress] = useState("")
-    const [note, setNote] = useState("")
+    const [customerName, setCustomerName] = useState("")
+    const [customerPhone, setCustomerPhone] = useState("")
+    const [customerAddress, setCustomerAddress] = useState("")
+    const [customerNote, setCustomerNote] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+    // Calculate cart total
+    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const deliveryFee = 40
+    const totalAmount = cartTotal + deliveryFee
 
     useEffect(() => {
         // Get cart from localStorage
@@ -36,135 +56,255 @@ export default function CheckoutPage() {
         if (savedCart) {
             setCart(JSON.parse(savedCart))
         } else {
-            // Redirect to meals page if cart is empty
             router.push("/meals")
             toast.error("Your cart is empty")
         }
-    }, [router])
 
-    // Calculate cart total
-    const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const deliveryFee = 40
-    const cartTotal = cartSubtotal + deliveryFee
+        // Get user data from localStorage
+        const userData = localStorage.getItem("honestMealsUser")
+        if (userData) {
+            const user = JSON.parse(userData)
+            setCustomerName(user.name || "")
+            setCustomerPhone(user.phone || "")
+            setCustomerAddress(user.address || "")
+        }
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
+        // Check if user is authenticated
+        async function checkAuth() {
+            const { data } = await supabase.auth.getSession()
+            if (data.session) {
+                setIsAuthenticated(true)
+                const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.session.user.id).single()
+                if (profile) {
+                    setCustomerName(profile.full_name || "")
+                    setCustomerPhone(profile.phone_number || "")
+                    setCustomerAddress(profile.address || "")
+                }
+            }
+        }
+        checkAuth()
+    }, [router, supabase])
 
-        if (!name || !phone || !address) {
+    const createWhatsAppOrder = () => {
+        let message = `*New Order from Honest Meals*\n\n`
+        message += `*Customer Details:*\n`
+        message += `*Name:* ${customerName}\n`
+        message += `*Phone:* ${customerPhone}\n`
+        message += `*Address:* ${customerAddress}\n`
+        message += `\n*Order Details:*\n`
+        cart.forEach((item, index) => {
+            message += `${index + 1}. ${item.name} x ${item.quantity} - ₹${(item.price * item.quantity).toFixed(2)}\n`
+        })
+        message += `\n*Subtotal:* ₹${cartTotal.toFixed(2)}\n`
+        message += `*Delivery Fee:* ₹40.00\n`
+        message += `*Total:* ₹${(cartTotal + 40).toFixed(2)}\n`
+        if (customerNote) {
+            message += `\n*Special Instructions:* ${customerNote}\n`
+        }
+        message += `\n*Order Time:* ${new Date().toLocaleString()}\n`
+        return encodeURIComponent(message)
+    }
+
+    const handleWhatsAppCheckout = async () => {
+        if (cart.length === 0) {
+            toast.error("Your cart is empty")
+            return
+        }
+        if (!customerName || !customerPhone || !customerAddress) {
             toast.error("Please fill in all required fields")
             return
         }
 
         setIsSubmitting(true)
 
-        // Format the order message
-        let message = `*New Order from Honest Meals*\n\n`
-        message += `*Name:* ${name}\n`
-        message += `*Phone:* ${phone}\n`
-        message += `*Address:* ${address}\n`
+        try {
+            const userData = { name: customerName, phone: customerPhone, address: customerAddress }
+            localStorage.setItem("honestMealsUser", JSON.stringify(userData))
 
-        message += `\n*Order Details:*\n`
+            const { data: { user } } = await supabase.auth.getUser()
+            let orderId = null
 
-        cart.forEach((item, index) => {
-            message += `${index + 1}. ${item.name} x ${item.quantity} - ₹${(item.price * item.quantity).toFixed(2)}\n`
-        })
+            if (user) {
+                const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+                if (profile) {
+                    setCustomerName(profile.full_name || customerName)
+                    setCustomerPhone(profile.phone_number || customerPhone)
+                    setCustomerAddress(profile.address || customerAddress)
+                }
 
-        message += `\n*Subtotal:* ₹${cartSubtotal.toFixed(2)}\n`
-        message += `*Delivery Fee:* ₹${deliveryFee.toFixed(2)}\n`
-        message += `*Total:* ₹${cartTotal.toFixed(2)}\n`
+                await supabase.from("profiles").upsert({
+                    id: user.id,
+                    full_name: customerName,
+                    phone_number: customerPhone,
+                    address: customerAddress,
+                    updated_at: new Date().toISOString(),
+                })
 
-        if (note) {
-            message += `\n*Note:* ${note}\n`
+                const result = await createOrder({
+                    userId: user.id,
+                    customerName,
+                    customerPhone,
+                    customerAddress,
+                    customerNote,
+                    cart,
+                    totalAmount,
+                    paymentMethod: "COD",
+                })
+
+                if (result.success) {
+                    orderId = result.orderId
+                } else {
+                    console.error("Order creation failed:", result.error)
+                }
+            }
+
+            const whatsappMessage = createWhatsAppOrder()
+            const whatsappLink = `https://wa.me/918888756746?text=${whatsappMessage}`
+
+            // Clear cart and redirect
+            localStorage.removeItem("honestMealsCart")
+            setCart([])
+
+            // Open WhatsApp directly
+            window.location.href = whatsappLink
+            // Redirect to order confirmation page
+            if (orderId) {
+                router.push(`/orders/${orderId}`)
+            } else {
+                router.push('/orders') // Fallback if no order ID
+            }
+
+        } catch (error) {
+            console.error("Error during checkout:", error)
+            toast.error("An error occurred during checkout")
+        } finally {
+            setIsSubmitting(false)
         }
-
-        // Encode the message for WhatsApp
-        const encodedMessage = encodeURIComponent(message)
-
-        // Create WhatsApp link (replace with your actual phone number)
-        const whatsappLink = `https://wa.me/918888756746?text=${encodedMessage}`
-
-        // Open WhatsApp in a new tab
-        window.open(whatsappLink, "_blank")
-
-        // Clear cart after successful order
-        localStorage.removeItem("honestMealsCart")
-
-        setIsSubmitting(false)
-        toast.success("Order sent to WhatsApp!")
-
-        // Redirect to home page
-        setTimeout(() => {
-            router.push("/")
-        }, 1500)
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="container mx-auto px-4 py-8">
-                <Button variant="ghost" className="mb-6" onClick={() => router.push("/meals")}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Meals
-                </Button>
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+            <Button variant="ghost" className="mb-6" onClick={() => router.push("/meals")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Meals
+            </Button>
 
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="bg-white p-6 rounded-lg shadow-sm">
-                        <h1 className="text-2xl font-bold mb-6">Checkout</h1>
+            <h1 className="text-2xl font-bold mb-6">Checkout</h1>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Delivery Information</CardTitle>
+                            <CardDescription>Enter your details for delivery</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">
-                                    Name <span className="text-red-500">*</span>
-                                </Label>
+                                <Label htmlFor="name">Full Name</Label>
                                 <Input
                                     id="name"
                                     placeholder="Your full name"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
                                     required
                                 />
                             </div>
-
                             <div className="space-y-2">
-                                <Label htmlFor="phone">
-                                    Phone Number <span className="text-red-500">*</span>
-                                </Label>
+                                <Label htmlFor="phone">Phone Number</Label>
                                 <Input
                                     id="phone"
                                     placeholder="Your phone number"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
+                                    value={customerPhone}
+                                    onChange={(e) => setCustomerPhone(e.target.value)}
                                     required
                                 />
                             </div>
-
                             <div className="space-y-2">
-                                <Label htmlFor="address">
-                                    Delivery Address <span className="text-red-500">*</span>
-                                </Label>
+                                <Label htmlFor="address">Delivery Address</Label>
                                 <Textarea
                                     id="address"
                                     placeholder="Your complete delivery address"
-                                    value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
-                                    className="resize-none"
+                                    value={customerAddress}
+                                    onChange={(e) => setCustomerAddress(e.target.value)}
                                     rows={3}
                                     required
                                 />
                             </div>
-
                             <div className="space-y-2">
                                 <Label htmlFor="note">Special Instructions (Optional)</Label>
                                 <Textarea
                                     id="note"
-                                    placeholder="Any special instructions for your order"
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
-                                    className="resize-none"
+                                    placeholder="Any special instructions for your order or delivery"
+                                    value={customerNote}
+                                    onChange={(e) => setCustomerNote(e.target.value)}
                                     rows={2}
                                 />
                             </div>
+                        </CardContent>
+                    </Card>
 
-                            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600" disabled={isSubmitting}>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Payment Method</CardTitle>
+                            <CardDescription>Choose how you want to pay</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center p-3 border rounded-md bg-gray-50">
+                                <CreditCard className="h-5 w-5 mr-2 text-green-500" />
+                                <div className="flex-1">
+                                    <p className="font-medium">Cash on Delivery</p>
+                                    <p className="text-sm text-muted-foreground">Pay when your order arrives</p>
+                                </div>
+                                <div className="w-5 h-5 rounded-full border-2 border-green-500 flex items-center justify-center">
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Order Summary</CardTitle>
+                            <CardDescription>
+                                {cart.length} {cart.length === 1 ? "item" : "items"} in your cart
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {cart.map((item) => (
+                                    <div key={item.id} className="flex justify-between text-sm pb-2 border-b">
+                                        <div>
+                                            <span className="font-medium">{item.name}</span>
+                                            <span className="text-muted-foreground"> × {item.quantity}</span>
+                                        </div>
+                                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                                    </div>
+                                ))}
+                                <div className="space-y-2 pt-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Subtotal</span>
+                                        <span>₹{cartTotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Delivery Fee</span>
+                                        <span>₹{deliveryFee.toFixed(2)}</span>
+                                    </div>
+                                    <Separator className="my-2" />
+                                    <div className="flex justify-between font-medium">
+                                        <span>Total</span>
+                                        <span>₹{totalAmount.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button
+                                className="w-full bg-green-500 hover:bg-green-600 h-12"
+                                onClick={handleWhatsAppCheckout}
+                                disabled={isSubmitting || cart.length === 0}
+                            >
                                 {isSubmitting ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -172,58 +312,23 @@ export default function CheckoutPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <Send className="mr-2 h-4 w-4" />
-                                        Send to WhatsApp
+                                        <ShoppingBag className="mr-2 h-4 w-4" />
+                                        Place Order via WhatsApp
                                     </>
                                 )}
                             </Button>
-                        </form>
-                    </div>
+                        </CardFooter>
+                    </Card>
 
-                    <div className="bg-white p-6 rounded-lg shadow-sm">
-                        <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-
-                        <div className="space-y-4 mb-6">
-                            {cart.map((item) => (
-                                <div key={item.id} className="flex justify-between pb-3 border-b">
-                                    <div>
-                                        <p className="font-medium">
-                                            {item.name} <span className="text-gray-500">x{item.quantity}</span>
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                            {item.calories} cal | {item.protein}g protein
-                                        </p>
-                                    </div>
-                                    <p className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="space-y-2 mb-4">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Subtotal</span>
-                                <span>₹{cartSubtotal.toFixed(2)}</span>
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                        <div className="flex items-start">
+                            <Truck className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
+                            <div>
+                                <p className="font-medium">Delivery Information</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Orders are typically delivered within 30-45 minutes depending on your location.
+                                </p>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Delivery Fee</span>
-                                <span>₹{deliveryFee.toFixed(2)}</span>
-                            </div>
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        <div className="flex justify-between font-bold text-lg">
-                            <span>Total</span>
-                            <span>₹{cartTotal.toFixed(2)}</span>
-                        </div>
-
-                        <div className="mt-6 bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
-                            <p className="mb-2">
-                                <span className="font-medium text-gray-700">Payment Method:</span> Cash on Delivery
-                            </p>
-                            <p>
-                                <span className="font-medium text-gray-700">Delivery Time:</span> 30-45 minutes after order confirmation
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -231,4 +336,3 @@ export default function CheckoutPage() {
         </div>
     )
 }
-

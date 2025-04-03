@@ -1,3 +1,5 @@
+// #app/meals/page.tsx
+
 import { Suspense } from "react"
 import MealsPage from "@/components/MealsPage" // Adjust the import path as needed
 import { Skeleton } from "@/components/ui/skeleton" // Optional: for fallback UI

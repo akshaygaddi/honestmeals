@@ -1,5 +1,7 @@
 "use client"
 
+import { Switch } from "@/components/ui/switch"
+
 import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/utils/supabase/client"
 import Image from "next/image"
@@ -20,10 +22,9 @@ import {
     Home,
     ChevronUp,
     Check,
-    Loader2,
-    Send,
-    User,
     Eye,
+    Heart,
+    Clock,
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Badge } from "@/components/ui/badge"
@@ -35,19 +36,8 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import MealDetailFlyover from "./MealDetailFlyover"
 
 type Meal = {
     id: string
@@ -111,18 +101,13 @@ export default function MealsPage() {
     const [isCartOpen, setIsCartOpen] = useState(false)
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [sortOption, setSortOption] = useState<string>("default")
-    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
-    const [customerName, setCustomerName] = useState("")
-    const [customerPhone, setCustomerPhone] = useState("")
-    const [customerAddress, setCustomerAddress] = useState("")
-    const [customerNote, setCustomerNote] = useState("")
-    const [isSubmitting, setIsSubmitting] = useState(false)
     const [showScrollTop, setShowScrollTop] = useState(false)
     const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
-
-    // New state for meal detail flyover
-    const [selectedMealId, setSelectedMealId] = useState<string | null>(null)
+    const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
     const [isMealDetailOpen, setIsMealDetailOpen] = useState(false)
+    const [favorites, setFavorites] = useState<string[]>([])
+    const [activeCategory, setActiveCategory] = useState<string | null>(null)
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
     const sortOptions: SortOption[] = [
         {
@@ -213,13 +198,10 @@ export default function MealsPage() {
                 setCart(JSON.parse(savedCart))
             }
 
-            // Get user data from localStorage
-            const userData = localStorage.getItem("honestMealsUser")
-            if (userData) {
-                const user = JSON.parse(userData)
-                setCustomerName(user.name || "")
-                setCustomerPhone(user.phone || "")
-                setCustomerAddress(user.address || "")
+            // Get favorites from localStorage
+            const savedFavorites = localStorage.getItem("honestMealsFavorites")
+            if (savedFavorites) {
+                setFavorites(JSON.parse(savedFavorites))
             }
 
             setLoading(false)
@@ -245,6 +227,11 @@ export default function MealsPage() {
         // Apply category filter
         if (selectedCategory) {
             filtered = filtered.filter((meal) => meal.category_id === selectedCategory)
+        }
+
+        // Apply active category filter (for horizontal category tabs)
+        if (activeCategory) {
+            filtered = filtered.filter((meal) => meal.category_id === activeCategory)
         }
 
         // Apply food type filter (veg/non-veg)
@@ -275,12 +262,26 @@ export default function MealsPage() {
         }
 
         setFilteredMeals(filtered)
-    }, [meals, selectedCategory, selectedFoodType, calorieType, searchQuery, sortOption, showOnlyAvailable])
+    }, [
+        meals,
+        selectedCategory,
+        selectedFoodType,
+        calorieType,
+        searchQuery,
+        sortOption,
+        showOnlyAvailable,
+        activeCategory,
+    ])
 
     // Update cart in localStorage
     useEffect(() => {
         localStorage.setItem("honestMealsCart", JSON.stringify(cart))
     }, [cart])
+
+    // Update favorites in localStorage
+    useEffect(() => {
+        localStorage.setItem("honestMealsFavorites", JSON.stringify(favorites))
+    }, [favorites])
 
     // Add to cart function
     const addToCart = (meal: Meal) => {
@@ -324,6 +325,17 @@ export default function MealsPage() {
         toast.success("Item removed from cart")
     }
 
+    // Toggle favorite
+    const toggleFavorite = (mealId: string) => {
+        setFavorites((prevFavorites) => {
+            if (prevFavorites.includes(mealId)) {
+                return prevFavorites.filter((id) => id !== mealId)
+            } else {
+                return [...prevFavorites, mealId]
+            }
+        })
+    }
+
     // Calculate total cart items
     const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -344,161 +356,26 @@ export default function MealsPage() {
         setSearchQuery("")
         setSortOption("default")
         setShowOnlyAvailable(true)
+        setActiveCategory(null)
     }
 
-    // Open meal detail flyover
-    const openMealDetail = (mealId: string) => {
-        setSelectedMealId(mealId)
+    // Open meal detail
+    const openMealDetail = (meal: Meal) => {
+        setSelectedMeal(meal)
         setIsMealDetailOpen(true)
     }
 
-    // Handle WhatsApp checkout
-    const handleWhatsAppCheckout = async () => {
-        // Validate cart and required fields
-        if (cart.length === 0) {
-            toast.error("Your cart is empty")
-            return
-        }
+    // Render spice level
+    const renderSpiceLevel = (level: number | null) => {
+        if (!level) return null
 
-        setIsSubmitting(true)
-
-        try {
-            // Get user data from Supabase if authenticated
-            const {
-                data: { user },
-            } = await supabase.auth.getUser()
-
-            // If user is authenticated, try to get or update profile data
-            if (user) {
-                const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-                if (profile) {
-                    // Use profile data if available, otherwise keep current values
-                    setCustomerName(profile.full_name || customerName)
-                    setCustomerPhone(profile.phone_number || customerPhone)
-                    setCustomerAddress(profile.address || customerAddress)
-                }
-
-                // Save order to database for authenticated users
-                try {
-                    // Update profile with latest information
-                    await supabase.from("profiles").upsert({
-                        id: user.id,
-                        full_name: customerName,
-                        phone_number: customerPhone,
-                        address: customerAddress,
-                        updated_at: new Date().toISOString(),
-                    })
-
-                    // Create order record
-                    const { data: order, error: orderError } = await supabase
-                        .from("orders")
-                        .insert({
-                            customer_id: user.id,
-                            total_amount: cartTotal + 40,
-                            status: "pending",
-                            delivery_address: customerAddress,
-                            notes: customerNote || null,
-                            payment_method: "COD",
-                        })
-                        .select()
-
-                    if (orderError) {
-                        console.error("Error creating order:", orderError)
-                        // Continue with WhatsApp even if DB fails
-                    } else if (order && order.length > 0) {
-                        // Create order items
-                        const orderItems = cart.map((item) => ({
-                            order_id: order[0].id,
-                            meal_id: item.id,
-                            quantity: item.quantity,
-                            unit_price: item.price,
-                            total_price: item.price * item.quantity,
-                        }))
-
-                        await supabase.from("order_items").insert(orderItems)
-                    }
-                } catch (dbError) {
-                    console.error("Database error during checkout:", dbError)
-                    // Continue with WhatsApp even if DB operations fail
-                }
-            }
-
-            // Validate required fields before proceeding
-            if (!customerName || !customerPhone || !customerAddress) {
-                toast.error("Please fill in all required fields")
-                setIsSubmitting(false)
-                return
-            }
-
-            // Save user data to localStorage for future use
-            const userData = {
-                name: customerName,
-                phone: customerPhone,
-                address: customerAddress,
-            }
-            localStorage.setItem("honestMealsUser", JSON.stringify(userData))
-
-            // Send order to WhatsApp
-            createWhatsAppOrder()
-        } catch (error) {
-            console.error("Error during checkout:", error)
-            toast.error("An error occurred during checkout")
-            setIsSubmitting(false)
-        }
-    }
-
-    const createWhatsAppOrder = () => {
-        try {
-            // Format the order message
-            let message = `*New Order from Honest Meals*\n\n`
-
-            // Customer details
-            message += `*Customer Details:*\n`
-            message += `*Name:* ${customerName}\n`
-            message += `*Phone:* ${customerPhone}\n`
-            message += `*Address:* ${customerAddress}\n`
-
-            // Order items
-            message += `\n*Order Details:*\n`
-            cart.forEach((item, index) => {
-                message += `${index + 1}. ${item.name} x ${item.quantity} - ₹${(item.price * item.quantity).toFixed(2)}\n`
-            })
-
-            // Order totals
-            message += `\n*Subtotal:* ₹${cartTotal.toFixed(2)}\n`
-            message += `*Delivery Fee:* ₹40.00\n`
-            message += `*Total:* ₹${(cartTotal + 40).toFixed(2)}\n`
-
-            // Add note if provided
-            if (customerNote) {
-                message += `\n*Special Instructions:* ${customerNote}\n`
-            }
-
-            // Add order timestamp
-            message += `\n*Order Time:* ${new Date().toLocaleString()}\n`
-
-            // Encode the message for WhatsApp
-            const encodedMessage = encodeURIComponent(message)
-
-            // Create WhatsApp link with business phone number
-            const whatsappLink = `https://wa.me/918888756746?text=${encodedMessage}`
-
-            // Open WhatsApp in a new tab
-            window.open(whatsappLink, "_blank")
-
-            // Reset state after successful order
-            setIsSubmitting(false)
-            setIsCheckoutOpen(false)
-            setIsCartOpen(false)
-            setCart([])
-
-            toast.success("Order sent to WhatsApp!")
-        } catch (error) {
-            console.error("Error sending to WhatsApp:", error)
-            toast.error("Failed to send order to WhatsApp")
-            setIsSubmitting(false)
-        }
+        return (
+            <div className="flex items-center">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className={`w-1.5 h-3 rounded-sm mx-0.5 ${i < level ? "bg-red-500" : "bg-gray-200"}`} />
+                ))}
+            </div>
+        )
     }
 
     return (
@@ -673,7 +550,7 @@ export default function MealsPage() {
 
                                         <Button
                                             onClick={() => {
-                                                setIsCheckoutOpen(true)
+                                                router.push("/checkout")
                                                 setIsCartOpen(false)
                                             }}
                                             className="w-full bg-green-500 hover:bg-green-600 h-12"
@@ -689,123 +566,203 @@ export default function MealsPage() {
                 </div>
             </header>
 
-            {/* Checkout Dialog */}
-            <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Complete Your Order</DialogTitle>
-                        <DialogDescription>
-                            Fill in your details to complete your order. We'll send it to WhatsApp for confirmation.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
-                                id="name"
-                                placeholder="Your name"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Phone Number</Label>
-                            <Input
-                                id="phone"
-                                placeholder="Your phone number"
-                                value={customerPhone}
-                                onChange={(e) => setCustomerPhone(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Delivery Address</Label>
-                            <Textarea
-                                id="address"
-                                placeholder="Your delivery address"
-                                value={customerAddress}
-                                onChange={(e) => setCustomerAddress(e.target.value)}
-                                className="resize-none"
-                                rows={3}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="note">Special Instructions (Optional)</Label>
-                            <Textarea
-                                id="note"
-                                placeholder="Any special instructions for your order"
-                                value={customerNote}
-                                onChange={(e) => setCustomerNote(e.target.value)}
-                                className="resize-none"
-                                rows={2}
-                            />
-                        </div>
-
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                            <h4 className="font-medium mb-2">Order Summary</h4>
-                            <div className="space-y-1 mb-3">
-                                {cart.map((item) => (
-                                    <div key={item.id} className="flex justify-between text-sm">
-                    <span>
-                      {item.name} x {item.quantity}
+            {/* Meal Detail Dialog */}
+            <Sheet open={isMealDetailOpen} onOpenChange={setIsMealDetailOpen} modal={true}>
+                <SheetContent side="right" className="w-full sm:max-w-xl p-0 overflow-y-auto">
+                    {selectedMeal && (
+                        <div className="flex flex-col h-full">
+                            <div className="relative h-64 sm:h-80">
+                                {selectedMeal.image_url ? (
+                                    <Image
+                                        src={selectedMeal.image_url || "/placeholder.svg"}
+                                        alt={selectedMeal.name}
+                                        fill
+                                        className="object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-400">
+                    <span className="text-white font-bold text-3xl">
+                      {selectedMeal.name.substring(0, 2).toUpperCase()}
                     </span>
-                                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                                     </div>
-                                ))}
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-4 right-4 bg-white/80 hover:bg-white rounded-full"
+                                    onClick={() => setIsMealDetailOpen(false)}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                                <div className="absolute top-4 left-4">
+                                    <Badge
+                                        className={`${
+                                            selectedMeal.food_type
+                                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                                : "bg-red-100 text-red-800 hover:bg-red-100"
+                                        }`}
+                                    >
+                                        {selectedMeal.food_type ? "Veg" : "Non-Veg"}
+                                    </Badge>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={`absolute bottom-4 right-4 rounded-full ${
+                                        favorites.includes(selectedMeal.id)
+                                            ? "bg-red-100 text-red-500 hover:bg-red-200 hover:text-red-600"
+                                            : "bg-white/80 hover:bg-white"
+                                    }`}
+                                    onClick={() => toggleFavorite(selectedMeal.id)}
+                                >
+                                    <Heart className={`h-5 w-5 ${favorites.includes(selectedMeal.id) ? "fill-red-500" : ""}`} />
+                                </Button>
                             </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-medium">
-                                <span>Total</span>
-                                <span>₹{(cartTotal + 40).toFixed(2)}</span>
+
+                            <div className="p-6 flex-1">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h2 className="text-2xl font-bold">{selectedMeal.name}</h2>
+                                    <div className="text-xl font-bold text-green-600">₹{selectedMeal.price.toFixed(2)}</div>
+                                </div>
+
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Badge variant="outline" className="bg-gray-100">
+                                        {getCategoryName(selectedMeal.category_id)}
+                                    </Badge>
+                                    {selectedMeal.cooking_time_minutes && (
+                                        <div className="flex items-center text-sm text-gray-500">
+                                            <Clock className="h-4 w-4 mr-1" />
+                                            {selectedMeal.cooking_time_minutes} min
+                                        </div>
+                                    )}
+                                    {selectedMeal.spice_level && (
+                                        <div className="flex items-center">
+                                            <span className="text-sm text-gray-500 mr-1">Spice:</span>
+                                            {renderSpiceLevel(selectedMeal.spice_level)}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {selectedMeal.description && (
+                                    <div className="mb-6">
+                                        <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
+                                        <p className="text-gray-700">{selectedMeal.description}</p>
+                                    </div>
+                                )}
+
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-medium text-gray-500 mb-3">Nutritional Information</h3>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div className="bg-blue-50 rounded-lg p-3 text-center">
+                                            <div className="text-lg font-bold text-blue-700">{selectedMeal.calories}</div>
+                                            <div className="text-xs text-blue-600">Calories</div>
+                                        </div>
+                                        <div className="bg-purple-50 rounded-lg p-3 text-center">
+                                            <div className="text-lg font-bold text-purple-700">{selectedMeal.protein}g</div>
+                                            <div className="text-xs text-purple-600">Protein</div>
+                                        </div>
+                                        <div className="bg-amber-50 rounded-lg p-3 text-center">
+                                            <div className="text-lg font-bold text-amber-700">{selectedMeal.carbs}g</div>
+                                            <div className="text-xs text-amber-600">Carbs</div>
+                                        </div>
+                                        <div className="bg-pink-50 rounded-lg p-3 text-center">
+                                            <div className="text-lg font-bold text-pink-700">{selectedMeal.fat}g</div>
+                                            <div className="text-xs text-pink-600">Fat</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-medium text-gray-500 mb-3">Health Benefits</h3>
+                                    <div className="space-y-2">
+                                        {selectedMeal.protein > 20 && (
+                                            <div className="flex items-start">
+                                                <div className="bg-green-100 p-1 rounded-full mr-2">
+                                                    <Dumbbell className="h-4 w-4 text-green-600" />
+                                                </div>
+                                                <div className="text-sm">
+                                                    <span className="font-medium">High in protein</span> - Helps with muscle recovery and growth
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedMeal.fiber && selectedMeal.fiber > 5 && (
+                                            <div className="flex items-start">
+                                                <div className="bg-green-100 p-1 rounded-full mr-2">
+                                                    <Leaf className="h-4 w-4 text-green-600" />
+                                                </div>
+                                                <div className="text-sm">
+                                                    <span className="font-medium">High in fiber</span> - Supports digestive health
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedMeal.calories < 500 && (
+                                            <div className="flex items-start">
+                                                <div className="bg-green-100 p-1 rounded-full mr-2">
+                                                    <Flame className="h-4 w-4 text-green-600" />
+                                                </div>
+                                                <div className="text-sm">
+                                                    <span className="font-medium">Low calorie</span> - Great for weight management
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-auto pt-4 border-t">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center">
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-9 w-9 rounded-full"
+                                                onClick={() => {
+                                                    const item = cart.find((item) => item.id === selectedMeal.id)
+                                                    if (item && item.quantity > 0) {
+                                                        removeFromCart(selectedMeal.id)
+                                                    }
+                                                }}
+                                                disabled={!cart.some((item) => item.id === selectedMeal.id)}
+                                            >
+                                                <Minus className="h-4 w-4" />
+                                            </Button>
+                                            <span className="mx-4 font-medium">
+                        {cart.find((item) => item.id === selectedMeal.id)?.quantity || 0}
+                      </span>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-9 w-9 rounded-full"
+                                                onClick={() => addToCart(selectedMeal)}
+                                                disabled={!selectedMeal.is_available}
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        <Button
+                                            className="bg-green-500 hover:bg-green-600"
+                                            size="lg"
+                                            onClick={() => {
+                                                addToCart(selectedMeal)
+                                                toast.success(`Added ${selectedMeal.name} to cart`)
+                                            }}
+                                            disabled={!selectedMeal.is_available}
+                                        >
+                                            Add to Cart
+                                        </Button>
+                                    </div>
+                                    {!selectedMeal.is_available && (
+                                        <div className="text-center text-red-500 font-medium">Currently unavailable</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsCheckoutOpen(false)
-                                setIsCartOpen(true)
-                            }}
-                        >
-                            Back to Cart
-                        </Button>
-                        <Button
-                            onClick={handleWhatsAppCheckout}
-                            className="bg-green-500 hover:bg-green-600"
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Processing...
-                                </>
-                            ) : (
-                                <>
-                                    <Send className="mr-2 h-4 w-4" />
-                                    Send to WhatsApp
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Meal Detail Flyover */}
-            <MealDetailFlyover
-                mealId={selectedMealId}
-                isOpen={isMealDetailOpen}
-                onOpenChange={setIsMealDetailOpen}
-                onAddToCart={addToCart}
-            />
+                    )}
+                </SheetContent>
+            </Sheet>
 
             <div className="container mx-auto px-4 py-6">
                 {/* Search and filter bar */}
-                <div className="mb-8 flex flex-col md:flex-row gap-4">
+                <div className="mb-6 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
@@ -952,6 +909,31 @@ export default function MealsPage() {
                     </DropdownMenu>
                 </div>
 
+                {/* Category tabs */}
+                <div className="mb-6 overflow-x-auto pb-2 hide-scrollbar">
+                    <div className="flex space-x-2">
+                        <Button
+                            variant={activeCategory === null ? "default" : "outline"}
+                            size="sm"
+                            className={activeCategory === null ? "bg-green-500 hover:bg-green-600" : ""}
+                            onClick={() => setActiveCategory(null)}
+                        >
+                            All Categories
+                        </Button>
+                        {categories.map((category) => (
+                            <Button
+                                key={category.id}
+                                variant={activeCategory === category.id ? "default" : "outline"}
+                                size="sm"
+                                className={activeCategory === category.id ? "bg-green-500 hover:bg-green-600" : ""}
+                                onClick={() => setActiveCategory(category.id)}
+                            >
+                                {category.name}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Active filters */}
                 {(selectedCategory ||
                     selectedFoodType !== null ||
@@ -1002,7 +984,40 @@ export default function MealsPage() {
                     </div>
                 )}
 
-                {/* Meals Grid */}
+                {/* View mode toggle */}
+                <div className="mb-6 flex justify-end">
+                    <div className="bg-gray-100 rounded-lg p-1 flex">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn("rounded-md px-3 py-1", viewMode === "grid" && "bg-white shadow-sm")}
+                            onClick={() => setViewMode("grid")}
+                        >
+                            <div className="grid grid-cols-2 gap-1">
+                                <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+                            </div>
+                            <span className="ml-2">Grid</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn("rounded-md px-3 py-1", viewMode === "list" && "bg-white shadow-sm")}
+                            onClick={() => setViewMode("list")}
+                        >
+                            <div className="flex flex-col gap-1">
+                                <div className="w-6 h-1 bg-gray-400 rounded-sm"></div>
+                                <div className="w-6 h-1 bg-gray-400 rounded-sm"></div>
+                                <div className="w-6 h-1 bg-gray-400 rounded-sm"></div>
+                            </div>
+                            <span className="ml-2">List</span>
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Meals Grid/List */}
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
                         <div className="relative w-20 h-20">
@@ -1011,95 +1026,240 @@ export default function MealsPage() {
                         </div>
                     </div>
                 ) : filteredMeals.length > 0 ? (
-                    <div ref={scrollRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        <AnimatePresence>
+                    viewMode === "grid" ? (
+                        <div ref={scrollRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <AnimatePresence>
+                                {filteredMeals.map((meal, index) => (
+                                    <motion.div
+                                        key={meal.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        transition={{ delay: index * 0.05 }}
+                                    >
+                                        <Card
+                                            className={cn(
+                                                "overflow-hidden h-full hover:shadow-lg transition-shadow duration-300 flex flex-col",
+                                                !meal.is_available && "opacity-70",
+                                            )}
+                                        >
+                                            <div className="relative h-48 bg-gray-100">
+                                                {meal.image_url ? (
+                                                    <Image
+                                                        src={meal.image_url || "/placeholder.svg"}
+                                                        alt={meal.name}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-400">
+                            <span className="text-white font-bold text-xl">
+                              {meal.name.substring(0, 2).toUpperCase()}
+                            </span>
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-2 right-2">
+                                                    <Badge
+                                                        className={`${
+                                                            meal.food_type
+                                                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                                                : "bg-red-100 text-red-800 hover:bg-red-100"
+                                                        }`}
+                                                    >
+                                                        {meal.food_type ? "Veg" : "Non-Veg"}
+                                                    </Badge>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className={`absolute bottom-2 right-2 rounded-full ${
+                                                        favorites.includes(meal.id)
+                                                            ? "bg-red-100 text-red-500 hover:bg-red-200 hover:text-red-600"
+                                                            : "bg-white/80 hover:bg-white"
+                                                    }`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        toggleFavorite(meal.id)
+                                                    }}
+                                                >
+                                                    <Heart className={`h-4 w-4 ${favorites.includes(meal.id) ? "fill-red-500" : ""}`} />
+                                                </Button>
+                                                {!meal.is_available && (
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                        <Badge variant="destructive" className="text-sm px-3 py-1">
+                                                            Currently Unavailable
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <CardContent className="p-4 flex flex-col flex-1">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h3 className="font-bold text-gray-800 line-clamp-1">{meal.name}</h3>
+                                                    <span className="font-bold text-green-600">₹{meal.price.toFixed(2)}</span>
+                                                </div>
+
+                                                <p className="text-sm text-gray-600 mb-3 line-clamp-2 flex-1">
+                                                    {meal.description || getCategoryName(meal.category_id)}
+                                                </p>
+
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                                                        {meal.calories} cal
+                                                    </Badge>
+                                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">
+                                                        {meal.protein}g protein
+                                                    </Badge>
+                                                    {meal.cooking_time_minutes && (
+                                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 hover:bg-amber-50">
+                                                            <Clock className="mr-1 h-3 w-3" />
+                                                            {meal.cooking_time_minutes} min
+                                                        </Badge>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-2">
+                                                    <Button onClick={() => openMealDetail(meal)} variant="outline" className="flex-1">
+                                                        <Eye className="mr-1 h-4 w-4" />
+                                                        Details
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => addToCart(meal)}
+                                                        className="flex-1 bg-green-500 hover:bg-green-600 transition-colors"
+                                                        disabled={!meal.is_available}
+                                                    >
+                                                        <Plus className="mr-1 h-4 w-4" />
+                                                        Add
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
                             {filteredMeals.map((meal, index) => (
                                 <motion.div
                                     key={meal.id}
-                                    initial={{ opacity: 0, y: 20 }}
+                                    initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.9 }}
-                                    transition={{ delay: index * 0.05 }}
+                                    exit={{ opacity: 0, x: -10 }}
+                                    transition={{ delay: index * 0.03 }}
                                 >
                                     <Card
                                         className={cn(
-                                            "overflow-hidden h-full hover:shadow-lg transition-shadow duration-300 flex flex-col",
+                                            "overflow-hidden hover:shadow-md transition-shadow duration-300",
                                             !meal.is_available && "opacity-70",
                                         )}
                                     >
-                                        <div className="relative h-48 bg-gray-100">
-                                            {meal.image_url ? (
-                                                <Image
-                                                    src={meal.image_url || "/placeholder.svg"}
-                                                    alt={meal.name}
-                                                    fill
-                                                    className="object-cover"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-400">
-                          <span className="text-white font-bold text-xl">
-                            {meal.name.substring(0, 2).toUpperCase()}
-                          </span>
-                                                </div>
-                                            )}
-                                            <div className="absolute top-2 right-2">
-                                                <Badge
-                                                    className={`${
-                                                        meal.food_type
-                                                            ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                                            : "bg-red-100 text-red-800 hover:bg-red-100"
-                                                    }`}
-                                                >
-                                                    {meal.food_type ? "Veg" : "Non-Veg"}
-                                                </Badge>
-                                            </div>
-                                            {!meal.is_available && (
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                                    <Badge variant="destructive" className="text-sm px-3 py-1">
-                                                        Currently Unavailable
+                                        <div className="flex flex-col sm:flex-row">
+                                            <div className="relative w-full sm:w-48 h-40 sm:h-auto bg-gray-100 flex-shrink-0">
+                                                {meal.image_url ? (
+                                                    <Image
+                                                        src={meal.image_url || "/placeholder.svg"}
+                                                        alt={meal.name}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-400">
+                            <span className="text-white font-bold text-xl">
+                              {meal.name.substring(0, 2).toUpperCase()}
+                            </span>
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-2 left-2">
+                                                    <Badge
+                                                        className={`${
+                                                            meal.food_type
+                                                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                                                : "bg-red-100 text-red-800 hover:bg-red-100"
+                                                        }`}
+                                                    >
+                                                        {meal.food_type ? "Veg" : "Non-Veg"}
                                                     </Badge>
                                                 </div>
-                                            )}
+                                                {!meal.is_available && (
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                        <Badge variant="destructive" className="text-sm px-3 py-1">
+                                                            Currently Unavailable
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <CardContent className="p-4 flex-1 flex flex-col">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-800">{meal.name}</h3>
+                                                        <p className="text-sm text-gray-500">{getCategoryName(meal.category_id)}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-green-600">₹{meal.price.toFixed(2)}</span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={`rounded-full ${
+                                                                favorites.includes(meal.id)
+                                                                    ? "text-red-500 hover:text-red-600"
+                                                                    : "text-gray-400 hover:text-gray-500"
+                                                            }`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                toggleFavorite(meal.id)
+                                                            }}
+                                                        >
+                                                            <Heart className={`h-4 w-4 ${favorites.includes(meal.id) ? "fill-red-500" : ""}`} />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                                                    {meal.description || "No description available"}
+                                                </p>
+
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                                                        {meal.calories} cal
+                                                    </Badge>
+                                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">
+                                                        {meal.protein}g protein
+                                                    </Badge>
+                                                    {meal.cooking_time_minutes && (
+                                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 hover:bg-amber-50">
+                                                            <Clock className="mr-1 h-3 w-3" />
+                                                            {meal.cooking_time_minutes} min
+                                                        </Badge>
+                                                    )}
+                                                    {meal.spice_level && meal.spice_level > 0 && (
+                                                        <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">
+                                                            Spice: {renderSpiceLevel(meal.spice_level)}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-2 mt-auto">
+                                                    <Button onClick={() => openMealDetail(meal)} variant="outline" size="sm">
+                                                        <Eye className="mr-1 h-4 w-4" />
+                                                        Details
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => addToCart(meal)}
+                                                        className="bg-green-500 hover:bg-green-600 transition-colors"
+                                                        size="sm"
+                                                        disabled={!meal.is_available}
+                                                    >
+                                                        <Plus className="mr-1 h-4 w-4" />
+                                                        Add to Cart
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
                                         </div>
-                                        <CardContent className="p-4 flex flex-col flex-1">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h3 className="font-bold text-gray-800 line-clamp-1">{meal.name}</h3>
-                                                <span className="font-bold text-green-600">₹{meal.price.toFixed(2)}</span>
-                                            </div>
-
-                                            <p className="text-sm text-gray-600 mb-3 line-clamp-2 flex-1">
-                                                {meal.description || getCategoryName(meal.category_id)}
-                                            </p>
-
-                                            <div className="flex gap-2 mb-4">
-                                                <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-                                                    {meal.calories} cal
-                                                </Badge>
-                                                <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">
-                                                    {meal.protein}g protein
-                                                </Badge>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <Button onClick={() => openMealDetail(meal.id)} variant="outline" className="flex-1">
-                                                    <Eye className="mr-1 h-4 w-4" />
-                                                    Details
-                                                </Button>
-                                                <Button
-                                                    onClick={() => addToCart(meal)}
-                                                    className="flex-1 bg-green-500 hover:bg-green-600 transition-colors"
-                                                    disabled={!meal.is_available}
-                                                >
-                                                    <Plus className="mr-1 h-4 w-4" />
-                                                    Add
-                                                </Button>
-                                            </div>
-                                        </CardContent>
                                     </Card>
                                 </motion.div>
                             ))}
-                        </AnimatePresence>
-                    </div>
+                        </div>
+                    )
                 ) : (
                     <div className="bg-white rounded-lg shadow-sm p-8 text-center border border-gray-100">
                         <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1151,7 +1311,7 @@ export default function MealsPage() {
                         className="flex flex-col items-center justify-center h-full w-full rounded-none"
                         onClick={() => router.push("/profile")}
                     >
-                        <User className="h-5 w-5" />
+                        <Home className="h-5 w-5" />
                         <span className="text-xs mt-1">Profile</span>
                     </Button>
                 </div>

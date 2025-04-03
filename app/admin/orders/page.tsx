@@ -1,6 +1,8 @@
+// app/admin/orders/page.tsx
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -34,8 +36,11 @@ import {
     Phone,
     CreditCard,
     Send,
+    Bell, Volume2Icon, VolumeXIcon,
 } from "lucide-react"
 import { format } from "date-fns"
+import { updateOrderStatus } from "@/app/actions/order-actions"
+import SoundPermissionRequest from "@/components/SoundPermissionRequest";
 
 type Order = {
     id: string
@@ -69,6 +74,9 @@ type OrderItem = {
 
 export default function AdminOrders() {
     const supabase = createClient()
+    const notificationSound = useRef<HTMLAudioElement | null>(null)
+    // Add this state
+    const [soundEnabled, setSoundEnabled] = useState(false);
 
     const [loading, setLoading] = useState(true)
     const [orders, setOrders] = useState<Order[]>([])
@@ -81,41 +89,256 @@ export default function AdminOrders() {
     const [newStatus, setNewStatus] = useState("")
     const [statusNote, setStatusNote] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [hasNewOrders, setHasNewOrders] = useState(false)
+    const [lastCheckedTimestamp, setLastCheckedTimestamp] = useState<string>(new Date().toISOString())
 
+    const [audioPermission, setAudioPermission] = useState(false)
+    const audioRef = useRef<HTMLAudioElement | null>(null)
+
+    // Initialize audio element
     useEffect(() => {
-        async function fetchOrders() {
-            setLoading(true)
+        audioRef.current = new Audio("/assets/sound/orders/zomato_ring_5.mp3")
+        audioRef.current.preload = "auto"
 
-            try {
-                const { data, error } = await supabase
-                    .from("orders")
-                    .select(`
-            *,
-            profiles(full_name, phone_number),
-            items:order_items(
-              *,
-              meal:meals(name, food_type)
-            )
-          `)
-                    .order("created_at", { ascending: false })
+        // Check if we can play audio
+        checkAudioPermission()
 
-                if (error) {
-                    console.error("Error fetching orders:", error)
-                    toast.error("Failed to load orders")
-                } else {
-                    setOrders(data || [])
-                    setFilteredOrders(data || [])
-                }
-            } catch (error) {
-                console.error("Error fetching orders:", error)
-                toast.error("An error occurred while loading orders")
-            } finally {
-                setLoading(false)
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current = null
             }
         }
+    }, [])
 
-        fetchOrders()
+    const checkAudioPermission = async () => {
+        try {
+            // Chrome requires some user interaction before allowing audio
+            // We'll test with a silent audio
+            const testAudio = new Audio()
+            testAudio.volume = 0.0001 // Nearly silent
+            await testAudio.play()
+            testAudio.pause()
+            setAudioPermission(true)
+        } catch (err) {
+            console.log("Audio permission not granted yet")
+            setAudioPermission(false)
+        }
+    }
+
+    const requestAudioPermission = async () => {
+        try {
+            // Create a button-triggered audio context
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+            const audioContext = new AudioContext()
+
+            // Resume the context (this will trigger Chrome's permission prompt)
+            await audioContext.resume()
+
+            // Test playback
+            const source = audioContext.createBufferSource()
+            source.buffer = audioContext.createBuffer(1, 1, 22050)
+            source.connect(audioContext.destination)
+            source.start(0)
+
+            // If we get here, permission was granted
+            setAudioPermission(true)
+            audioContext.close()
+
+            // Now we can play our notification sound
+            if (audioRef.current) {
+                audioRef.current.play().catch(err => console.error("Playback error:", err))
+            }
+
+        } catch (err) {
+            console.error("Failed to get audio permission:", err)
+            alert("Please allow audio permissions in your browser settings")
+        }
+    }
+
+
+    // In your new order handler
+    const handleNewOrder = () => {
+        if (!audioPermission) {
+            // Show a button to request permission
+            return (
+                <div className="fixed bottom-4 right-4 bg-blue-100 p-4 rounded-lg">
+                    <p>Allow sound notifications for new orders?</p>
+                    <button
+                        onClick={requestAudioPermission}
+                        className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
+                    >
+                        Allow Sounds
+                    </button>
+                </div>
+            )
+        }
+
+        // Play sound if permission granted
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0
+            audioRef.current.play().catch(err => {
+                console.error("Playback failed:", err)
+                setAudioPermission(false)
+            })
+        }
+    }
+
+    // Initialize notification sound
+    useEffect(() => {
+        // Create the audio element with preload
+        notificationSound.current = new Audio("/assets/sound/orders/zomato_ring_5.mp3")
+        notificationSound.current.preload = "auto"
+
+        // Test load the audio to ensure it's ready
+        notificationSound.current.load()
+
+        // Add event listener for any errors
+        const handleAudioError = (e) => {
+            console.error("Audio error:", e)
+        }
+        notificationSound.current.addEventListener('error', handleAudioError)
+
+        return () => {
+            if (notificationSound.current) {
+                notificationSound.current.removeEventListener('error', handleAudioError)
+            }
+        }
+    }, [])
+
+    // Set up real-time subscription for new orders
+    useEffect(() => {
+        // Fix: Make sure we have supabase before setting up subscription
+        if (!supabase) return
+
+        console.log("Setting up order subscription...")
+
+        const subscription = supabase
+            .channel("orders-channel")
+            .on(
+                "postgres_changes",
+                {
+                    event: "*", // Listen for all events (INSERT, UPDATE, DELETE)
+                    schema: "public",
+                    table: "orders",
+                },
+                (payload) => {
+                    console.log("Received order event:", payload.eventType, payload)
+
+                    // Only show notification for new orders
+                    if (payload.eventType === "INSERT" && soundEnabled) {
+                        // Play notification sound
+                        if (notificationSound.current) {
+                            notificationSound.current.currentTime = 0;
+                            notificationSound.current.play().catch(err => {
+                                console.error("Playback error:", err);
+                                // If playback fails, disable sounds
+                                setSoundEnabled(false);
+                                localStorage.setItem("soundPermissionAsked", "false");
+                            })
+                        } else {
+                            console.warn("Notification sound not initialized")
+                        }
+
+                        // Show toast notification
+                        toast.custom(
+                            (t) => (
+                                <div
+                                    className={`${t.visible ? "animate-enter" : "animate-leave"} max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex`}
+                                >
+                                    <div className="flex-1 p-4">
+                                        <div className="flex items-start">
+                                            <div className="flex-shrink-0 pt-0.5">
+                                                <Bell className="h-10 w-10 text-green-500" />
+                                            </div>
+                                            <div className="ml-3 flex-1">
+                                                <p className="text-sm font-medium text-gray-900">New Order Received!</p>
+                                                <p className="mt-1 text-sm text-gray-500">
+                                                    Order #{payload.new.id.substring(0, 8)} has been placed.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex border-l border-gray-200">
+                                        <button
+                                            onClick={() => {
+                                                toast.dismiss(t.id)
+                                                fetchOrders()
+                                            }}
+                                            className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-green-600 hover:text-green-500 focus:outline-none"
+                                        >
+                                            View
+                                        </button>
+                                    </div>
+                                </div>
+                            ),
+                            { duration: 5000 },
+                        )
+
+                        setHasNewOrders(true)
+                    } else if (payload.eventType === "UPDATE") {
+                        // Refresh orders list when an order is updated
+                        fetchOrders()
+                    }
+                },
+            )
+            .subscribe((status) => {
+                console.log("Subscription status:", status)
+            })
+
+        return () => {
+            console.log("Cleaning up subscription")
+            if (subscription) {
+                supabase.removeChannel(subscription)
+            }
+        }
     }, [supabase])
+
+    // Fetch orders
+    const fetchOrders = async () => {
+        setLoading(true)
+
+        try {
+            console.log("Fetching orders...")
+            const { data, error } = await supabase
+                .from("orders")
+                .select(`
+                    *,
+                    profiles(full_name, phone_number),
+                    items:order_items(
+                        *,
+                        meal:meals(name, food_type)
+                    )
+                `)
+                .order("created_at", { ascending: false })
+
+            if (error) {
+                console.error("Error fetching orders:", error)
+                toast.error("Failed to load orders")
+            } else {
+                console.log(`Fetched ${data?.length || 0} orders`)
+                setOrders(data || [])
+                setFilteredOrders(data || [])
+                setHasNewOrders(false)
+                setLastCheckedTimestamp(new Date().toISOString())
+            }
+        } catch (error) {
+            console.error("Error fetching orders:", error)
+            toast.error("An error occurred while loading orders")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Initial fetch
+    useEffect(() => {
+        // Fix: Added a delay to ensure client is fully initialized
+        const timer = setTimeout(() => {
+            fetchOrders()
+        }, 500)
+
+        return () => clearTimeout(timer)
+    }, []) // Removed supabase dependency to prevent refetching
 
     // Filter orders
     useEffect(() => {
@@ -155,44 +378,22 @@ export default function AdminOrders() {
         setIsStatusDialogOpen(true)
     }
 
-    const updateOrderStatus = async () => {
+    const handleUpdateOrderStatus = async () => {
         if (!selectedOrder || !newStatus) return
 
         setIsSubmitting(true)
 
         try {
-            const { error } = await supabase
-                .from("orders")
-                .update({
-                    status: newStatus,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", selectedOrder.id)
+            const result = await updateOrderStatus(selectedOrder.id, newStatus, statusNote)
 
-            if (error) {
-                console.error("Error updating order status:", error)
-                toast.error("Failed to update order status")
-            } else {
+            if (result.success) {
                 toast.success(`Order status updated to ${newStatus}`)
 
-                // Send notification to customer (in a real app)
-                // This would typically be handled by a server function
-
                 // Refresh orders list
-                const { data } = await supabase
-                    .from("orders")
-                    .select(`
-            *,
-            profiles(full_name, phone_number),
-            items:order_items(
-              *,
-              meal:meals(name, food_type)
-            )
-          `)
-                    .order("created_at", { ascending: false })
-
-                setOrders(data || [])
+                await fetchOrders()
                 setIsStatusDialogOpen(false)
+            } else {
+                toast.error(result.error || "Failed to update order status")
             }
         } catch (error) {
             console.error("Error updating order status:", error)
@@ -264,11 +465,54 @@ export default function AdminOrders() {
         }
     }
 
+    // Function to manually refresh orders
+    const handleManualRefresh = () => {
+        fetchOrders()
+        toast.success("Orders refreshed")
+    }
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Orders Management</h1>
-                <p className="text-muted-foreground">Manage and track customer orders</p>
+            <SoundPermissionRequest onPermissionGranted={() => setSoundEnabled(true)} />
+            {/* Add a sound permission toggle */}
+            <button
+                onClick={audioPermission ?
+                    () => setAudioPermission(false) :
+                    requestAudioPermission
+                }
+                className="fixed bottom-4 right-4 bg-blue-500 text-white p-3 rounded-full shadow-lg"
+            >
+                {audioPermission ? (
+                    <Volume2Icon className="h-6 w-6" />
+                ) : (
+                    <VolumeXIcon className="h-6 w-6" />
+                )}
+            </button>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Orders Management</h1>
+                    <p className="text-muted-foreground">Manage and track customer orders</p>
+                </div>
+
+                <div className="flex space-x-2">
+                    {hasNewOrders && (
+                        <Button onClick={fetchOrders} className="bg-green-500 hover:bg-green-600 flex items-center">
+                            <Bell className="mr-2 h-4 w-4" />
+                            New Orders Available
+                        </Button>
+                    )}
+
+                    {/* Added manual refresh button */}
+                    <Button onClick={handleManualRefresh} variant="outline" className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                            <path d="M3 22v-6h6"></path>
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                        </svg>
+                        Refresh
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -286,7 +530,10 @@ export default function AdminOrders() {
                             />
                         </div>
 
-                        <Select value={statusFilter || ""} onValueChange={(value) => setStatusFilter(value || null)}>
+                        <Select
+                            value={statusFilter || "all"}
+                            onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
+                        >
                             <SelectTrigger className="w-full md:w-[200px]">
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
@@ -338,7 +585,14 @@ export default function AdminOrders() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredOrders.map((order) => (
-                                        <TableRow key={order.id}>
+                                        <TableRow
+                                            key={order.id}
+                                            className={
+                                                new Date(order.created_at) > new Date(lastCheckedTimestamp) && order.status === "pending"
+                                                    ? "bg-green-50"
+                                                    : ""
+                                            }
+                                        >
                                             <TableCell className="font-medium">#{order.id.substring(0, 8)}</TableCell>
                                             <TableCell>
                                                 <div>
@@ -448,8 +702,8 @@ export default function AdminOrders() {
                                                     className={`w-2 h-2 rounded-full mr-2 ${item.meal.food_type ? "bg-green-500" : "bg-red-500"}`}
                                                 ></div>
                                                 <span>
-                          {item.meal.name} <span className="text-muted-foreground">× {item.quantity}</span>
-                        </span>
+                                                {item.meal.name} <span className="text-muted-foreground">× {item.quantity}</span>
+                                                </span>
                                             </div>
                                             <span className="font-medium">₹{item.total_price.toFixed(2)}</span>
                                         </div>
@@ -544,7 +798,11 @@ export default function AdminOrders() {
                         <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={updateOrderStatus} className="bg-green-500 hover:bg-green-600" disabled={isSubmitting}>
+                        <Button
+                            onClick={handleUpdateOrderStatus}
+                            className="bg-green-500 hover:bg-green-600"
+                            disabled={isSubmitting}
+                        >
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -560,7 +818,9 @@ export default function AdminOrders() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Hidden audio element for notification sound - Added controls for debugging */}
+            <audio id="notification-sound" src="/assets/sound/orders/zomato_ring_5.mp3" preload="auto" style={{display: 'none'}} />
         </div>
     )
 }
-
