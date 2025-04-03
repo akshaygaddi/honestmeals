@@ -6,10 +6,25 @@ import { Toaster } from 'react-hot-toast';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Honest Meals - Your Partner in Achieving Fitness Goals',
-  description: 'Honest Meals provides healthy meal plans that help you achieve your fitness goals, whether it\'s weight loss, maintenance, or muscle gain.',
-  keywords: 'healthy meals, meal prep, fitness meals, weight loss, muscle gain',
+  title: "Honest Meals - Healthy Diet Plans",
+  description: "Order customized Indian diet meals for weight loss, muscle gain, and healthy living.",
+  openGraph: {
+    title: "Honest Meals - Healthy Diet Plans",
+    description: "Order customized Indian diet meals for weight loss, muscle gain, and healthy living.",
+    url: "https://honestmeals.vercel.app/",
+    siteName: "Honest Meals",
+    images: [
+      {
+        url: "/opengraph-image.png", // Ensure this file exists in the public folder
+        width: 1200,
+        height: 630,
+        alt: "Honest Meals Preview Image",
+      },
+    ],
+    type: "website",
+  },
 };
+
 
 export default function RootLayout({
                                      children,
