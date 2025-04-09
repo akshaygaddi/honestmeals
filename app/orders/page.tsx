@@ -152,7 +152,7 @@ export default function OrdersPage() {
                             <Button variant="outline" onClick={() => router.push("/meals")}>
                                 Browse Meals
                             </Button>
-                            <Button onClick={() => router.push("/login")}>Sign In</Button>
+                            <Button onClick={() => router.push("/sign-in")}>Sign In</Button>
                         </div>
                     </CardContent>
                 </Card>

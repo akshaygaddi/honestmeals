@@ -29,7 +29,7 @@ export default function RecordsPage() {
 
             if (!user) {
                 toast.error("Please sign in to access your records")
-                router.push("/login")
+                router.push("/sign-in")
                 return
             }
 

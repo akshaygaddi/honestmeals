@@ -16,7 +16,7 @@ export default function AdminRoute({ children }) {
         if (!loading) {
             if (!user) {
                 toast.error("You must be logged in to access the admin area")
-                router.push("/login")
+                router.push("/sign-in")
             } else if (!hasRequiredRole) {
                 toast.error("You don't have permission to access the admin area")
                 router.push("/")

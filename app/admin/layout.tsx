@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             if (!user) {
                 toast.error("You must be logged in to access the admin area")
-                router.push("/login")
+                router.push("/sign-in")
                 return
             }
 

@@ -278,7 +278,7 @@ export default function ProfilePage() {
                                     ) : (
                                         <div className="text-center py-8">
                                             <p className="text-gray-500 mb-4">You need to be logged in to view your order history</p>
-                                            <Button onClick={() => router.push("/login")} className="bg-green-500 hover:bg-green-600">
+                                            <Button onClick={() => router.push("/sign-in")} className="bg-green-500 hover:bg-green-600">
                                                 Log In
                                             </Button>
                                         </div>
