@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import { motion } from 'framer-motion';
 
 import {
@@ -18,15 +18,35 @@ import Image from 'next/image';
 import mainLogo from "@/assets/images/homepage/honesMealLogo(png).png"
 import backgroundVeg from "@/assets/images/homepage/bg-veg.jpg"
 import backgroundNonVeg from "@/assets/images/homepage/bg-non-veg.jpg"
+import backgroundHealthyDrinks from "@/app/bg-healthyDrinks.avif"
+import backgroundCustomizedMeals from "@/app/bg-customizeMeals.jpg"
+
+
+
 import {Button} from "@/components/ui/button";
+import {useRouter} from "next/navigation";
 
 const HomePage = () => {
     const [selectedOption, setSelectedOption] = useState(null);
-    const router = { push: (path) => console.log(`Navigating to: ${path}`) };
+    const router = useRouter()
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        // Simulate loading
+        const timer = setTimeout(() => {
+            setIsLoading(false)
+        }, 600)
+        return () => clearTimeout(timer)
+    }, [])
+
 
     const handleOptionSelect = (option) => {
         setSelectedOption(option);
+        setTimeout(() => {
+            router.push(`/meals?diet=${option}`)
+        }, 100)
     };
+
 
     // Animation variants
     const fadeIn = {
@@ -48,6 +68,24 @@ const HomePage = () => {
         rest: { scale: 1 },
         hover: { scale: 1.03, transition: { duration: 0.3 } }
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center"
+                >
+                    <div className="relative w-20 h-20 mb-6">
+                        <div className="absolute top-0 left-0 w-full h-full border-4 border-gray-200 rounded-full"></div>
+                        <div className="absolute top-0 left-0 w-full h-full border-4 border-t-green-500 rounded-full animate-spin"></div>
+                    </div>
+                    <h2 className="text-2xl font-medium text-gray-700">We Cook You Eat</h2>
+                </motion.div>
+            </div>
+        )
+    }
 
     return (
         <div className="relative min-h-screen">
@@ -182,7 +220,14 @@ const HomePage = () => {
                                 </div>
                                 <div className="absolute inset-0 z-0 bg-green-900">
                                     <div className="w-full h-full relative">
-                                        <div className="w-full h-full bg-green-800"></div>
+                                        <Image
+                                            src={backgroundVeg}
+                                            alt="Vegetarian food"
+                                            fill
+                                            className="object-cover opacity-90"
+                                            placeholder="blur"
+                                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAQDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAdEAABBAIDAAAAAAAAAAAAAAAAAQIDEQQFBhIh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAaEQACAgMAAAAAAAAAAAAAAAABAgADBBEh/9oADAMBAAIRAxEAPwCK3XbibMkjc+auNFkSK1DqGOVURPRYACot7MUez//Z"
+                                        />
                                     </div>
                                 </div>
                             </motion.div>
@@ -203,7 +248,7 @@ const HomePage = () => {
                                 <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-20">
                                     <div className="bg-red-500/90 text-white px-3 py-1 rounded-full flex items-center">
                                         <Utensils className="h-4 w-4 mr-1" />
-                                        <span className="font-medium">Non-Vegetarian</span>
+                                        <span className="font-medium">Non-Veg</span>
                                     </div>
                                     <div className="bg-white/90 text-red-600 px-2 py-1 rounded-full text-sm font-medium">
                                         From ₹85
@@ -222,7 +267,14 @@ const HomePage = () => {
                                 </div>
                                 <div className="absolute inset-0 z-0 bg-red-900">
                                     <div className="w-full h-full relative">
-                                        <div className="w-full h-full bg-red-800"></div>
+                                        <Image
+                                            src={backgroundNonVeg}
+                                            alt="Non-vegetarian food"
+                                            fill
+                                            className="object-cover opacity-90"
+                                            placeholder="blur"
+                                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAQDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAdEAABBAIDAAAAAAAAAAAAAAAAAQIDEQQFBhIh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAaEQACAgMAAAAAAAAAAAAAAAABAgADBBEh/9oADAMBAAIRAxEAPwCK3XbibMkjc+auNFkSK1DqGOVURPRYACot7MUez//Z"
+                                        />
                                     </div>
                                 </div>
                             </motion.div>
@@ -234,7 +286,7 @@ const HomePage = () => {
                                 initial="rest"
                                 animate="rest"
                                 variants={cardHover}
-                                onClick={() => handleOptionSelect("drinks")}
+                                onClick={() => handleOptionSelect("healthy-drinks")}
                                 className={`relative bg-white rounded-2xl overflow-hidden cursor-pointer shadow-lg transition-all duration-300 h-80 ${
                                     selectedOption === "drinks" ? "ring-4 ring-blue-500" : ""
                                 }`}
@@ -260,9 +312,16 @@ const HomePage = () => {
                                         <ArrowRight className="ml-1 h-3 w-3" />
                                     </Button>
                                 </div>
-                                <div className="absolute inset-0 z-0 bg-blue-900">
+                                <div className="absolute inset-0 z-0 bg-red-900">
                                     <div className="w-full h-full relative">
-                                        <div className="w-full h-full bg-blue-800"></div>
+                                        <Image
+                                            src={backgroundHealthyDrinks}
+                                            alt="Non-vegetarian food"
+                                            fill
+                                            className="object-cover opacity-90"
+                                            placeholder="blur"
+                                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAQDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAdEAABBAIDAAAAAAAAAAAAAAAAAQIDEQQFBhIh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAaEQACAgMAAAAAAAAAAAAAAAABAgADBBEh/9oADAMBAAIRAxEAPwCK3XbibMkjc+auNFkSK1DqGOVURPRYACot7MUez//Z"
+                                        />
                                     </div>
                                 </div>
                             </motion.div>
@@ -274,7 +333,7 @@ const HomePage = () => {
                                 initial="rest"
                                 animate="rest"
                                 variants={cardHover}
-                                onClick={() => handleOptionSelect("custom")}
+                                onClick={() =>  router.push(`/customize-meal`)}
                                 className={`relative bg-white rounded-2xl overflow-hidden cursor-pointer shadow-lg transition-all duration-300 h-80 ${
                                     selectedOption === "custom" ? "ring-4 ring-purple-500" : ""
                                 }`}
@@ -300,9 +359,16 @@ const HomePage = () => {
                                         <ArrowRight className="ml-1 h-3 w-3" />
                                     </Button>
                                 </div>
-                                <div className="absolute inset-0 z-0 bg-purple-900">
+                                <div className="absolute inset-0 z-0 bg-red-900">
                                     <div className="w-full h-full relative">
-                                        <div className="w-full h-full bg-purple-800"></div>
+                                        <Image
+                                            src={backgroundCustomizedMeals}
+                                            alt="Non-vegetarian food"
+                                            fill
+                                            className="object-cover opacity-90"
+                                            placeholder="blur"
+                                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAQDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAdEAABBAIDAAAAAAAAAAAAAAAAAQIDEQQFBhIh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAaEQACAgMAAAAAAAAAAAAAAAABAgADBBEh/9oADAMBAAIRAxEAPwCK3XbibMkjc+auNFkSK1DqGOVURPRYACot7MUez//Z"
+                                        />
                                     </div>
                                 </div>
                             </motion.div>

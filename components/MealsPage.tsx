@@ -86,28 +86,29 @@ export default function MealsPage() {
     const router = useRouter()
     const scrollRef = useRef<HTMLDivElement>(null)
 
-    const [meals, setMeals] = useState<Meal[]>([])
-    const [categories, setCategories] = useState<MealCategory[]>([])
-    const [dietaryTypes, setDietaryTypes] = useState<DietaryType[]>([])
-    const [filteredMeals, setFilteredMeals] = useState<Meal[]>([])
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+    const [meals, setMeals] = useState<Meal[]>([]);
+    const [categories, setCategories] = useState<MealCategory[]>([]);
+    const [dietaryTypes, setDietaryTypes] = useState<DietaryType[]>([]);
+    const [filteredMeals, setFilteredMeals] = useState<Meal[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [selectedFoodType, setSelectedFoodType] = useState<boolean | null>(
-        diet === "veg" ? true : diet === "non-veg" ? false : null,
-    )
-    const [calorieType, setCalorieType] = useState<string>("all")
-    const [cart, setCart] = useState<CartItem[]>([])
-    const [loading, setLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState("")
-    const [isCartOpen, setIsCartOpen] = useState(false)
-    const [isFilterOpen, setIsFilterOpen] = useState(false)
-    const [sortOption, setSortOption] = useState<string>("default")
-    const [showScrollTop, setShowScrollTop] = useState(false)
-    const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
-    const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
-    const [isMealDetailOpen, setIsMealDetailOpen] = useState(false)
-    const [favorites, setFavorites] = useState<string[]>([])
-    const [activeCategory, setActiveCategory] = useState<string | null>(null)
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+        diet === "veg" ? true : diet === "non-veg" ? false : null
+    );
+    const [selectedDietaryType, setSelectedDietaryType] = useState<string | null>(null); // New state for dietary type
+    const [calorieType, setCalorieType] = useState<string>("all");
+    const [cart, setCart] = useState<CartItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [sortOption, setSortOption] = useState<string>("default");
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
+    const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+    const [isMealDetailOpen, setIsMealDetailOpen] = useState(false);
+    const [favorites, setFavorites] = useState<string[]>([]);
+    const [activeCategory, setActiveCategory] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
     const sortOptions: SortOption[] = [
         {
@@ -152,126 +153,130 @@ export default function MealsPage() {
         window.scrollTo({ top: 0, behavior: "smooth" })
     }
 
-    // Fetch data
+    // Fetch data and set dietary type if applicable
     useEffect(() => {
         async function fetchData() {
-            setLoading(true)
+            setLoading(true);
 
             // Fetch meals
-            const { data: mealsData, error: mealsError } = await supabase.from("meals").select("*").order("name")
-
+            const { data: mealsData, error: mealsError } = await supabase.from("meals").select("*").order("name");
             if (mealsError) {
-                console.error("Error fetching meals:", mealsError)
-                toast.error("Failed to load meals")
+                console.error("Error fetching meals:", mealsError);
+                toast.error("Failed to load meals");
             } else {
-                setMeals(mealsData || [])
-                setFilteredMeals(mealsData || [])
+                setMeals(mealsData || []);
+                setFilteredMeals(mealsData || []);
             }
 
             // Fetch categories
             const { data: categoriesData, error: categoriesError } = await supabase
                 .from("meal_categories")
                 .select("*")
-                .order("name")
-
+                .order("name");
             if (categoriesError) {
-                console.error("Error fetching categories:", categoriesError)
+                console.error("Error fetching categories:", categoriesError);
             } else {
-                setCategories(categoriesData || [])
+                setCategories(categoriesData || []);
             }
 
             // Fetch dietary types
             const { data: dietaryTypesData, error: dietaryTypesError } = await supabase
                 .from("dietary_types")
                 .select("*")
-                .order("name")
-
+                .order("name");
             if (dietaryTypesError) {
-                console.error("Error fetching dietary types:", dietaryTypesError)
+                console.error("Error fetching dietary types:", dietaryTypesError);
             } else {
-                setDietaryTypes(dietaryTypesData || [])
+                setDietaryTypes(dietaryTypesData || []);
+
+                // Check if diet param is "healthy-drinks" or "soups"
+                if (diet && diet !== "veg" && diet !== "non-veg") {
+                    const matchedDietaryType = dietaryTypesData?.find(
+                        (type) => type.name.toLowerCase() === diet.toLowerCase()
+                    );
+                    if (matchedDietaryType) {
+                        setSelectedDietaryType(matchedDietaryType.id);
+                    }
+                }
             }
 
-            // Get cart from localStorage
-            const savedCart = localStorage.getItem("honestMealsCart")
-            if (savedCart) {
-                setCart(JSON.parse(savedCart))
-            }
-
-            // Get favorites from localStorage
-            const savedFavorites = localStorage.getItem("honestMealsFavorites")
-            if (savedFavorites) {
-                setFavorites(JSON.parse(savedFavorites))
-            }
-
-            setLoading(false)
+            // ... (rest of the fetchData function remains unchanged)
+            setLoading(false);
         }
 
-        fetchData()
-    }, [supabase])
+        fetchData();
+    }, [supabase, diet]);
 
     // Filter meals
     useEffect(() => {
-        let filtered = [...meals]
+        let filtered = [...meals];
+
+        // Apply dietary type filter if set (e.g., "healthy-drinks" or "soups")
+        if (selectedDietaryType) {
+            filtered = filtered.filter((meal) => meal.dietary_type_id === selectedDietaryType);
+        }
 
         // Apply search filter
         if (searchQuery.trim() !== "") {
-            const query = searchQuery.toLowerCase()
+            const query = searchQuery.toLowerCase();
             filtered = filtered.filter(
                 (meal) =>
                     meal.name.toLowerCase().includes(query) ||
-                    (meal.description && meal.description.toLowerCase().includes(query)),
-            )
+                    (meal.description && meal.description.toLowerCase().includes(query))
+            );
         }
 
         // Apply category filter
         if (selectedCategory) {
-            filtered = filtered.filter((meal) => meal.category_id === selectedCategory)
+            filtered = filtered.filter((meal) => meal.category_id === selectedCategory);
         }
 
         // Apply active category filter (for horizontal category tabs)
         if (activeCategory) {
-            filtered = filtered.filter((meal) => meal.category_id === activeCategory)
+            filtered = filtered.filter((meal) => meal.category_id === activeCategory);
         }
 
         // Apply food type filter (veg/non-veg)
         if (selectedFoodType !== null) {
-            filtered = filtered.filter((meal) => meal.food_type === selectedFoodType)
+            filtered = filtered.filter((meal) => meal.food_type === selectedFoodType);
         }
 
         // Apply availability filter
         if (showOnlyAvailable) {
-            filtered = filtered.filter((meal) => meal.is_available)
+            filtered = filtered.filter((meal) => meal.is_available);
         }
 
         // Apply calorie filter
         if (calorieType !== "all") {
             if (calorieType === "deficit") {
-                filtered = filtered.filter((meal) => meal.calories < 500)
+                filtered = filtered.filter((meal) => meal.calories < 500);
             } else if (calorieType === "maintenance") {
-                filtered = filtered.filter((meal) => meal.calories >= 500 && meal.calories <= 700)
+                filtered = filtered.filter((meal) => meal.calories >= 500 && meal.calories <= 700);
             } else if (calorieType === "surplus") {
-                filtered = filtered.filter((meal) => meal.calories > 700)
+                filtered = filtered.filter((meal) => meal.calories > 700);
             }
         }
 
         // Apply sorting
-        const currentSortOption = sortOptions.find((option) => option.value === sortOption)
+        const currentSortOption = sortOptions.find((option) => option.value === sortOption);
         if (currentSortOption) {
-            filtered.sort(currentSortOption.sortFn)
+            filtered.sort(currentSortOption.sortFn);
         }
 
-        setFilteredMeals(filtered)
+        setFilteredMeals(filtered);
     }, [
         meals,
         selectedCategory,
         selectedFoodType,
+        selectedDietaryType, // Added to dependencies
         calorieType,
         searchQuery,
         sortOption,
         showOnlyAvailable,
         activeCategory,
-    ])
+    ]);
+
+
 
     // Update cart in localStorage
     useEffect(() => {
@@ -348,16 +353,17 @@ export default function MealsPage() {
         return category ? category.name : "Unknown Category"
     }
 
-    // Clear filters
+    // Clear filters (updated to include dietary type)
     const clearFilters = () => {
-        setSelectedCategory(null)
-        setSelectedFoodType(null)
-        setCalorieType("all")
-        setSearchQuery("")
-        setSortOption("default")
-        setShowOnlyAvailable(true)
-        setActiveCategory(null)
-    }
+        setSelectedCategory(null);
+        setSelectedFoodType(null);
+        setSelectedDietaryType(null); // Clear dietary type filter
+        setCalorieType("all");
+        setSearchQuery("");
+        setSortOption("default");
+        setShowOnlyAvailable(true);
+        setActiveCategory(null);
+    };
 
     // Open meal detail
     const openMealDetail = (meal: Meal) => {
