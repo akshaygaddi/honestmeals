@@ -12,7 +12,7 @@ import {
     Heart,
     Coffee,
     Settings,
-    CreditCard
+    CreditCard, User
 } from 'lucide-react';
 import Image from 'next/image';
 import mainLogo from "@/assets/images/homepage/honesMealLogo(png).png"
@@ -25,11 +25,25 @@ import backgroundCustomizedMeals from "@/app/bg-customizeMeals.jpg"
 
 import {Button} from "@/components/ui/button";
 import {useRouter} from "next/navigation";
+import {createClient} from "@/utils/supabase/client";
 
 const HomePage = () => {
     const [selectedOption, setSelectedOption] = useState(null);
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(true)
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const supabase = createClient();
+
+        supabase.auth.getUser().then(({ data }) => {
+            console.log(data);
+
+            setUser(data.user);
+        });
+    }, []);
+
+
 
     useEffect(() => {
         // Simulate loading
@@ -112,10 +126,50 @@ const HomePage = () => {
                             <a href="#why-us" className="text-gray-600 hover:text-green-600 font-medium">Why Us</a>
                             <a href="#testimonials" className="text-gray-600 hover:text-green-600 font-medium">Reviews</a>
                         </nav>
-                        <Button className="bg-green-600 hover:bg-green-700 text-white rounded-full">
-                            Login
-                        </Button>
+                        <div >
+                            {/*auth dispplay */}
+
+                            <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto">
+                                {!user ? (
+                                    <>
+                                        <Button
+                                            onClick={() => router.push("/sign-in")}
+                                            className="bg-green-600 hover:bg-green-700 text-white rounded-full w-full sm:w-auto transition duration-200"
+                                        >
+                                            Login
+                                        </Button>
+                                        <Button
+                                            onClick={() => router.push("/sign-up")}
+                                            className="bg-white border border-green-600 text-green-600 hover:bg-green-100 rounded-full w-full sm:w-auto transition duration-200"
+                                        >
+                                            Signup
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Mobile: Plain icon only, no button capsule */}
+                                        <div
+                                            onClick={() => router.push("/profile")}
+                                            className="sm:hidden p-2 rounded-full hover:bg-green-100 cursor-pointer bg-white border border-green-600 text-green-600 hover:bg-green-100 rounded-full"
+                                        >
+                                            <User size={20} className="text-green-600" />
+                                        </div>
+
+                                        {/* Desktop: Styled button with email */}
+                                        <Button
+                                            onClick={() => router.push("/profile")}
+                                            className="hidden sm:flex bg-white border border-green-600 text-green-600 hover:bg-green-100 rounded-full w-full sm:w-auto transition duration-200 items-center space-x-2"
+                                        >
+                                            <span>{user.email}</span>
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+
+                        </div>
+
                     </header>
+
 
                     {/* About Us Section */}
                     <motion.section

@@ -14,7 +14,7 @@ import { ArrowLeft, User, MapPin, Phone, Save, Loader2 } from "lucide-react"
 
 type Profile = {
     id: string
-    full_name: string | null
+    name: string | null
     phone_number: string | null
     address: string | null
     updated_at: string | null
@@ -70,7 +70,7 @@ export default function ProfilePage() {
                 toast.error("Failed to load profile")
             } else if (data) {
                 setProfile(data)
-                setFullName(data.full_name || "")
+                setFullName(data.name || "")
                 setPhoneNumber(data.phone_number || "")
                 setAddress(data.address || "")
             }
@@ -115,7 +115,7 @@ export default function ProfilePage() {
                 const { error } = await supabase
                     .from("profiles")
                     .update({
-                        full_name: fullName,
+                        name: fullName,
                         phone_number: phoneNumber,
                         address: address,
                         updated_at: new Date().toISOString(),
@@ -132,7 +132,7 @@ export default function ProfilePage() {
                 // Create new profile
                 const { error } = await supabase.from("profiles").insert({
                     id: user.id,
-                    full_name: fullName,
+                    name: fullName,
                     phone_number: phoneNumber,
                     address: address,
                     updated_at: new Date().toISOString(),
