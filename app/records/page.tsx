@@ -57,10 +57,10 @@ export default function RecordsPage() {
             <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-8">
                     <TabsTrigger value="food-journal">Food Journal</TabsTrigger>
-                    <TabsTrigger value="calorie-calculator">Calorie Calculator</TabsTrigger>
-                    <TabsTrigger value="bmi-calculator">BMI Calculator</TabsTrigger>
-                    <TabsTrigger value="water-intake">Water Intake</TabsTrigger>
-                    <TabsTrigger value="sustainable-diet">Sustainable Diet</TabsTrigger>
+                    {/*<TabsTrigger value="calorie-calculator">Calorie Calculator</TabsTrigger>*/}
+                    {/*<TabsTrigger value="bmi-calculator">BMI Calculator</TabsTrigger>*/}
+                    {/*<TabsTrigger value="water-intake">Water Intake</TabsTrigger>*/}
+                    {/*<TabsTrigger value="sustainable-diet">Sustainable Diet</TabsTrigger>*/}
                     <TabsTrigger value="meal-recommendations">Meal Recommendations</TabsTrigger>
                 </TabsList>
 
@@ -68,21 +68,21 @@ export default function RecordsPage() {
                     <FoodJournal userId={userId} />
                 </TabsContent>
 
-                <TabsContent value="calorie-calculator">
-                    <CalorieCalculator userId={userId} />
-                </TabsContent>
+                {/*<TabsContent value="calorie-calculator">*/}
+                {/*    <CalorieCalculator userId={userId} />*/}
+                {/*</TabsContent>*/}
 
-                <TabsContent value="bmi-calculator">
-                    <BmiCalculator userId={userId} />
-                </TabsContent>
+                {/*<TabsContent value="bmi-calculator">*/}
+                {/*    <BmiCalculator userId={userId} />*/}
+                {/*</TabsContent>*/}
 
-                <TabsContent value="water-intake">
-                    <WaterIntake userId={userId} />
-                </TabsContent>
+                {/*<TabsContent value="water-intake">*/}
+                {/*    <WaterIntake userId={userId} />*/}
+                {/*</TabsContent>*/}
 
-                <TabsContent value="sustainable-diet">
-                    <SustainableDiet />
-                </TabsContent>
+                {/*<TabsContent value="sustainable-diet">*/}
+                {/*    <SustainableDiet />*/}
+                {/*</TabsContent>*/}
 
                 <TabsContent value="meal-recommendations">
                     <MealRecommendations userId={userId} />
