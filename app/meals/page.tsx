@@ -63,7 +63,8 @@ import {
     Moon,
     Menu,
     X,
-    ArrowRight
+    ArrowRight,
+    Instagram
 } from 'lucide-react';
 
 // Import your UI components
@@ -207,6 +208,24 @@ export default function MealsPage() {
                             >
                                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Contact Banner */}
+                    <div className={`w-full py-2 ${darkMode ? 'bg-green-900' : 'bg-green-100'}`}>
+                        <div className="container mx-auto px-4 flex justify-center items-center space-x-6 text-sm">
+                            <div className="flex items-center space-x-2">
+                                <Phone size={16} className="text-green-600" />
+                                <span className={darkMode ? 'text-green-100' : 'text-green-800'}>Call us: +91 8888756746</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Instagram size={16} className="text-green-600" />
+                                <span className={darkMode ? 'text-green-100' : 'text-green-800'}>@honestmealsindia</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Clock size={16} className="text-green-600" />
+                                <span className={darkMode ? 'text-green-100' : 'text-green-800'}>Hours: 9:00 AM - 10:00 PM</span>
+                            </div>
                         </div>
                     </div>
 
