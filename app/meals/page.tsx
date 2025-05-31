@@ -64,7 +64,8 @@ import {
     Menu,
     X,
     ArrowRight,
-    Instagram
+    Instagram,
+    FileText
 } from 'lucide-react';
 
 // Import your UI components
@@ -156,6 +157,11 @@ export default function MealsPage() {
         setExpandedFaq(expandedFaq === index ? null : index);
     };
 
+    // Function to handle PDF download
+    const handlePdfDownload = () => {
+        window.open('https://mdbgsntbffcomdbvdqrr.supabase.co/storage/v1/object/public/meals//Honest%20Meals%20(May)%20.pdf', '_blank');
+    };
+
     return (
         <>
             <Head>
@@ -212,19 +218,33 @@ export default function MealsPage() {
                     </div>
 
                     {/* Contact Banner */}
-                    <div className={`w-full py-2 ${darkMode ? 'bg-green-900' : 'bg-green-100'}`}>
-                        <div className="container mx-auto px-4 flex justify-center items-center space-x-6 text-sm">
-                            <div className="flex items-center space-x-2">
-                                <Phone size={16} className="text-green-600" />
-                                <span className={darkMode ? 'text-green-100' : 'text-green-800'}>Call us: +91 8888756746</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Instagram size={16} className="text-green-600" />
-                                <span className={darkMode ? 'text-green-100' : 'text-green-800'}>@honestmealsindia</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Clock size={16} className="text-green-600" />
-                                <span className={darkMode ? 'text-green-100' : 'text-green-800'}>Hours: 9:00 AM - 10:00 PM</span>
+                    <div className={`w-full py-3 ${darkMode ? 'bg-green-900' : 'bg-green-100'}`}>
+                        <div className="container mx-auto px-4">
+                            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8">
+                                <a 
+                                    href="tel:+918888756746" 
+                                    className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 ${
+                                        darkMode 
+                                            ? 'hover:bg-green-800 active:bg-green-700' 
+                                            : 'hover:bg-green-200 active:bg-green-300'
+                                    }`}
+                                >
+                                    <Phone size={18} className="text-green-600" />
+                                    <span className={`${darkMode ? 'text-green-100' : 'text-green-800'} font-medium`}>+91 8888756746</span>
+                                </a>
+                                <a 
+                                    href="https://instagram.com/honestmealsindia" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 ${
+                                        darkMode 
+                                            ? 'hover:bg-green-800 active:bg-green-700' 
+                                            : 'hover:bg-green-200 active:bg-green-300'
+                                    }`}
+                                >
+                                    <Instagram size={18} className="text-green-600" />
+                                    <span className={`${darkMode ? 'text-green-100' : 'text-green-800'} font-medium`}>@honestmealsindia</span>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -236,27 +256,48 @@ export default function MealsPage() {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className={`md:hidden ${darkMode ? 'bg-gray-800' : 'bg-white'} border-t ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}
+                                className={`md:hidden overflow-hidden ${darkMode ? 'bg-gray-900 border-t border-gray-800' : 'bg-white border-t border-gray-100'}`}
                             >
-                                <div className="container mx-auto px-4 py-4 flex flex-col space-y-4">
-                                    <a href="/#about" className={`py-2 font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>About</a>
-                                    <a href="/meals" className={`py-2 font-medium ${darkMode ? 'text-green-500' : 'text-green-600'}`}>Meals</a>
-                                    <a href="/#why-us" className={`py-2 font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Why Us</a>
-                                    <a href="/#testimonials" className={`py-2 font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Reviews</a>
-                                    <Button
-                                        className={`w-full transition duration-200 ${
-                                            darkMode
-                                                ? 'bg-green-600 hover:bg-green-700 text-white'
-                                                : 'bg-green-600 hover:bg-green-700 text-white'
-                                        } rounded-full`}
-                                    >
+                                <nav className="flex flex-col space-y-4 p-6">
+                                    <a href="/#about" className={`hover:text-green-600 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>About</a>
+                                    <a href="/meals" className={`font-medium ${darkMode ? 'text-green-500' : 'text-green-600'}`}>Meals</a>
+                                    <a href="/#why-us" className={`hover:text-green-600 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Why Us</a>
+                                    <a href="/#testimonials" className={`hover:text-green-600 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Reviews</a>
+                                    <Button className={`${darkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
                                         Login
                                     </Button>
-                                </div>
+                                </nav>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </header>
+
+                {/* PDF Menu Download Banner */}
+                <div className={`w-full py-4 ${darkMode ? 'bg-green-800/70' : 'bg-green-50'} border-b ${darkMode ? 'border-green-700' : 'border-green-100'}`}>
+                    <div className="container mx-auto px-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-center">
+                            <div className="mb-4 sm:mb-0">
+                                <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-green-800'}`}>
+                                    View Our Monthly Menu
+                                </h2>
+                                <p className={`text-sm ${darkMode ? 'text-green-100' : 'text-green-700'}`}>
+                                    Check out our latest offerings for May
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={handlePdfDownload}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-full ${
+                                    darkMode 
+                                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                        : 'bg-green-600 hover:bg-green-700 text-white'
+                                } transition-all duration-300 shadow-md hover:shadow-lg`}
+                            >
+                                <FileText size={18} />
+                                <span className="font-medium">Open Menu PDF</span>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
 
                 <main className="container mx-auto px-4 py-6 md:py-12">
                     {/* Hero Section */}
@@ -636,7 +677,6 @@ export default function MealsPage() {
                         </AnimatePresence>
                     </motion.section>
 
-                    {/* FAQ Section */}
                     {/* FAQ Section */}
                     <motion.section
                         className="mb-16 md:mb-24"
