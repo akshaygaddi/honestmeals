@@ -234,113 +234,41 @@ export default function MealsPage() {
                     {/* Hero Section with PDF Focus */}
                     <section className={`py-16 ${darkMode ? 'bg-gray-800' : 'bg-gradient-to-br from-green-50 to-green-100'}`}>
                         <div className="container mx-auto px-4">
-                            <div className="flex flex-col lg:flex-row items-center gap-10">
-                                <div className="w-full lg:w-1/2 text-center lg:text-left">
-                                    <motion.div
-                                        initial="hidden"
-                                        animate="visible"
-                                        variants={fadeIn}
-                                    >
-                                        <h1 className={`text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                                            Premium <span className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>Air-Fried</span> Meal Plans
-                                        </h1>
-                                        <p className={`text-xl mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                            Delicious, healthy, and convenient meal plans delivered right to your door. Choose from 7, 15, or 30-day plans in both veg and non-veg options.
-                                        </p>
-                                        <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
-                                            <Button 
-                                                onClick={handlePdfDownload}
-                                                className={`flex items-center gap-2 px-8 py-4 rounded-full text-lg ${
-                                                    darkMode 
-                                                        ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                                        : 'bg-green-600 hover:bg-green-700 text-white'
-                                                } transition-all duration-300 shadow-md hover:shadow-lg`}
-                                            >
-                                                <FileText size={20} />
-                                                <span className="font-medium">View Full Menu</span>
-                                            </Button>
-                                            <a 
-                                                href="tel:+917972279059"
-                                                className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full text-lg ${
-                                                    darkMode 
-                                                        ? 'bg-transparent border-2 border-green-600 text-green-500 hover:bg-green-900/30' 
-                                                        : 'bg-transparent border-2 border-green-600 text-green-600 hover:bg-green-50'
-                                                } transition-all duration-300`}
-                                            >
-                                                <Phone size={20} />
-                                                <span className="font-medium">Order Now</span>
-                                            </a>
-                                        </div>
-                                    </motion.div>
-                                </div>
-                                
-                                {/* PDF Preview Card */}
-                                <motion.div 
-                                    className="w-full lg:w-1/2"
+                            <div className="max-w-3xl mx-auto text-center">
+                                <motion.div
                                     initial="hidden"
                                     animate="visible"
                                     variants={fadeIn}
                                 >
-                                    <div className={`relative overflow-hidden rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-700' : 'bg-white'}`}>
-                                        <div className="p-6">
-                                            <div className={`text-center p-8 rounded-xl mb-6 ${darkMode ? 'bg-gray-800' : 'bg-green-50'}`}>
-                                                <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Fit N Fab Meal Plan</h2>
-                                                <p className={`${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>WEEKLY | 15 DAYS | MONTHLY</p>
-                                            </div>
-                                            
-                                            <div className="space-y-6">
-                                                <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-green-50'}`}>
-                                                    <h3 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-green-500' : 'text-green-700'}`}>CHICKEN DISH (DEFICIT/SURPLUS)</h3>
-                                                    <div className="grid grid-cols-3 gap-4 text-center">
-                                                        <div>
-                                                            <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>15 MEALS</p>
-                                                            <p className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>₹1,785/-</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>15 DAYS</p>
-                                                            <p className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>₹3,255/-</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>MONTHLY</p>
-                                                            <p className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>₹6,450/-</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className={`p-6 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-green-50'}`}>
-                                                    <h3 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-green-500' : 'text-green-700'}`}>PANEER DISH (AMUL)</h3>
-                                                    <div className="grid grid-cols-3 gap-4 text-center">
-                                                        <div>
-                                                            <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>15 MEALS</p>
-                                                            <p className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>₹2,729/-</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>15 DAYS</p>
-                                                            <p className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>₹2,765/-</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>MONTHLY</p>
-                                                            <p className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>₹6,529/-</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="mt-8 text-center">
-                                                <p className={`mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Customized meal available</p>
-                                                <Button 
-                                                    onClick={handlePdfDownload}
-                                                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl ${
-                                                        darkMode 
-                                                            ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                                            : 'bg-green-600 hover:bg-green-700 text-white'
-                                                    } transition-all duration-300`}
-                                                >
-                                                    <FileText size={18} />
-                                                    <span className="font-medium">View Complete Menu</span>
-                                                </Button>
-                                            </div>
-                                        </div>
+                                    <h1 className={`text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                                        Premium <span className={`${darkMode ? 'text-green-500' : 'text-green-600'}`}>Air-Fried</span> Meal Plans
+                                    </h1>
+                                    <p className={`text-xl mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        Delicious, healthy, and convenient meal plans delivered right to your door. Choose from 7, 15, or 30-day plans in both veg and non-veg options.
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row justify-center gap-4">
+                                        <Button 
+                                            onClick={handlePdfDownload}
+                                            className={`flex items-center gap-2 px-8 py-4 rounded-full text-lg ${
+                                                darkMode 
+                                                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                                    : 'bg-green-600 hover:bg-green-700 text-white'
+                                            } transition-all duration-300 shadow-md hover:shadow-lg`}
+                                        >
+                                            <FileText size={20} />
+                                            <span className="font-medium">View Full Menu</span>
+                                        </Button>
+                                        <a 
+                                            href="tel:+917972279059"
+                                            className={`flex items-center justify-center gap-2 px-8 py-4 rounded-full text-lg ${
+                                                darkMode 
+                                                    ? 'bg-transparent border-2 border-green-600 text-green-500 hover:bg-green-900/30' 
+                                                    : 'bg-transparent border-2 border-green-600 text-green-600 hover:bg-green-50'
+                                            } transition-all duration-300`}
+                                        >
+                                            <Phone size={20} />
+                                            <span className="font-medium">Order Now</span>
+                                        </a>
                                     </div>
                                 </motion.div>
                             </div>
