@@ -4,7 +4,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X } from "lucide-react"
+import { Menu, X, Heart } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,9 +21,20 @@ export function SiteHeader() {
             active: pathname === "/",
         },
         {
+            href: "/meals",
+            label: "Meals",
+            active: pathname === "/meals",
+        },
+        {
             href: "/meal-plans",
             label: "Meal Plans",
             active: pathname === "/meal-plans",
+        },
+        {
+            href: "/favorites",
+            label: "Favorites",
+            active: pathname === "/favorites",
+            icon: <Heart className="h-4 w-4 text-red-500" />,
         },
         {
             href: "/about",
@@ -50,12 +61,13 @@ export function SiteHeader() {
                                 key={route.href}
                                 href={route.href}
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary",
+                                    "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1",
                                     route.active
                                         ? "text-foreground font-semibold"
                                         : "text-foreground/60"
                                 )}
                             >
+                                {route.icon && route.icon}
                                 {route.label}
                             </Link>
                         ))}
@@ -98,13 +110,14 @@ export function SiteHeader() {
                                     key={route.href}
                                     href={route.href}
                                     className={cn(
-                                        "text-base font-medium transition-colors hover:text-primary",
+                                        "text-base font-medium transition-colors hover:text-primary flex items-center gap-2",
                                         route.active
                                             ? "text-foreground font-semibold"
                                             : "text-foreground/60"
                                     )}
                                     onClick={() => setMobileMenuOpen(false)}
                                 >
+                                    {route.icon && route.icon}
                                     {route.label}
                                 </Link>
                             ))}

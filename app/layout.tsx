@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { ScrollToTop } from "@/components/scroll-to-top";
+// import { ScrollToTop } from "@/components/scroll-to-top";
 import { TailwindIndicator } from "@/components/tailwind-indicator";
 
 import { createClient } from "@/utils/supabase/server";
@@ -93,10 +93,9 @@ export default async function RootLayout({
                 <div className="flex-1">
                     <main>{children}</main>
                 </div>
-                <SiteFooter />
             </div>
 
-            <ScrollToTop />
+    
             <TailwindIndicator />
         </ThemeProvider>
 

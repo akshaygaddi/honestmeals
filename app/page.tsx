@@ -706,63 +706,11 @@ const HomePage = () => {
             </section>
 
             {/* Footer */}
-            <footer className="bg-gray-800 text-gray-300 py-12">
-                <div className="container mx-auto px-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <div>
-                            <h3 className="text-xl font-bold text-white mb-4">Honest Meals</h3>
-                            <p className="mb-4">Real food for real people. Honest portions, fair prices, and quality ingredients.</p>
-                            <div className="flex space-x-4">
-                                <a href="#" className="text-gray-300 hover:text-white">
-                                    <span className="sr-only">Facebook</span>
-                                    {/* Facebook icon would go here */}
-                                </a>
-                                <a href="#" className="text-gray-300 hover:text-white">
-                                    <span className="sr-only">Instagram</span>
-                                    {/* Instagram icon would go here */}
-                                </a>
-                                <a href="#" className="text-gray-300 hover:text-white">
-                                    <span className="sr-only">Twitter</span>
-                                    {/* Twitter icon would go here */}
-                                </a>
-                            </div>
-                        </div>
 
-                        <div>
-                            <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3>
-                            <ul className="space-y-2">
-                                <li><a href="#about" className="hover:text-white">About Us</a></li>
-                                <li><a href="#meals" className="hover:text-white">Our Meals</a></li>
-                                <li><a href="#why-us" className="hover:text-white">Why Choose Us</a></li>
-                                <li><a href="#testimonials" className="hover:text-white">Reviews</a></li>
-                            </ul>
-                        </div>
+      
+            
 
-                        <div>
-                            <h3 className="text-lg font-semibold text-white mb-4">Meal Categories</h3>
-                            <ul className="space-y-2">
-                                <li><a href="#" className="hover:text-white">Vegetarian</a></li>
-                                <li><a href="#" className="hover:text-white">Non-Vegetarian</a></li>
-                                <li><a href="#" className="hover:text-white">Healthy Drinks</a></li>
-                                <li><a href="#" className="hover:text-white">Custom Meals</a></li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h3 className="text-lg font-semibold text-white mb-4">Contact</h3>
-                            <ul className="space-y-2">
-                                <li>Email: info@honestmeals.com</li>
-                                <li>Phone: +91 9876543210</li>
-                                <li>Address: 123 Healthy Street, Food City</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-700 mt-8 pt-8 text-sm text-center">
-                        <p>&copy; {new Date().getFullYear()} Honest Meals. All rights reserved.</p>
-                    </div>
-                </div>
-            </footer>
+            
         </div>
     );
 };

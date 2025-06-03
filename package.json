@@ -30,6 +30,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.15.0",
     "lucide-react": "^0.468.0",
     "motion": "^12.6.2",
     "next": "latest",
@@ -42,7 +43,8 @@
     "react-hot-toast": "^2.5.2",
     "sonner": "^2.0.3",
     "uuid": "^11.1.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

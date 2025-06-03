@@ -16,13 +16,123 @@ export async function signUpAction(formData: FormData) {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
     name: formData.get("name")?.toString()
-
   }
-  const { error } = await supabase.auth.signUp(data)
+  
+  // Sign up the user
+  const { data: authData, error } = await supabase.auth.signUp(data)
+  
   if (error) {
     console.log(error)
+    return encodedRedirect("error", "/sign-up", error.message)
   }
+  
+  // The profile should be created automatically by the database trigger
+  // But let's make sure the user's name is saved
+  if (authData?.user && data.name) {
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        name: data.name,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', authData.user.id)
+      
+    if (profileError) {
+      console.error("Profile update error:", profileError.message)
+    }
+  }
+  
   return redirect("/")
+}
+
+export async function signUpTrainerAction(formData: FormData) {
+  const supabase = await createClient()
+
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+    name: formData.get("name")?.toString()
+  }
+  
+  // Trainer-specific data
+  const specialty = formData.get("specialty")?.toString()
+  const experience = formData.get("experience")?.toString()
+  const bio = formData.get("bio")?.toString()
+  
+  // Sign up the user
+  const { data: authData, error } = await supabase.auth.signUp(data)
+  
+  if (error) {
+    console.log(error)
+    return encodedRedirect("error", "/register-trainer", error.message)
+  }
+  
+  if (authData?.user) {
+    // Update profile with trainer role and details
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        name: data.name,
+        role: 'gym_trainer',
+        trainer_specialty: specialty,
+        trainer_experience: experience ? parseInt(experience, 10) : 0,
+        metadata: { bio, application_status: 'pending' },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', authData.user.id)
+      
+    if (profileError) {
+      console.error("Profile update error:", profileError.message)
+      return encodedRedirect("error", "/register-trainer", "Failed to create trainer profile")
+    }
+  }
+  
+  return encodedRedirect("success", "/trainer-application-submitted", "Your application has been submitted successfully!")
+}
+
+export async function signUpInfluencerAction(formData: FormData) {
+  const supabase = await createClient()
+
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+    name: formData.get("name")?.toString()
+  }
+  
+  // Influencer-specific data
+  const platform = formData.get("platform")?.toString()
+  const followers = formData.get("followers")?.toString()
+  const profileUrl = formData.get("profileUrl")?.toString()
+  
+  // Sign up the user
+  const { data: authData, error } = await supabase.auth.signUp(data)
+  
+  if (error) {
+    console.log(error)
+    return encodedRedirect("error", "/register-influencer", error.message)
+  }
+  
+  if (authData?.user) {
+    // Update profile with influencer role and details
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        name: data.name,
+        role: 'gym_influencer',
+        influencer_platform: platform,
+        influencer_followers: followers ? parseInt(followers, 10) : 0,
+        metadata: { profile_url: profileUrl, application_status: 'pending' },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', authData.user.id)
+      
+    if (profileError) {
+      console.error("Profile update error:", profileError.message)
+      return encodedRedirect("error", "/register-influencer", "Failed to create influencer profile")
+    }
+  }
+  
+  return encodedRedirect("success", "/influencer-application-submitted", "Your application has been submitted successfully!")
 }
 
 export const updateUserDetailsAction = async (formData: FormData) => {
@@ -61,6 +171,50 @@ export const updateUserDetailsAction = async (formData: FormData) => {
   }
 
   return redirect("/")
+}
+
+export const updateUserRoleAction = async (formData: FormData) => {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return encodedRedirect("error", "/sign-in", "User not authenticated")
+  }
+
+  // First check if the current user is an admin
+  const { data: currentUserProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!currentUserProfile || currentUserProfile.role !== 'admin') {
+    return encodedRedirect("error", "/unauthorized", "Only admins can update user roles")
+  }
+
+  const userId = formData.get("userId") as string
+  const newRole = formData.get("role") as string
+
+  if (!userId || !newRole) {
+    return encodedRedirect("error", "/admin/users", "User ID and role are required")
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      role: newRole,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+
+  if (error) {
+    console.error("Role update error:", error.message)
+    return encodedRedirect("error", "/admin/users", "Failed to update user role")
+  }
+
+  return encodedRedirect("success", "/admin/users", "User role updated successfully")
 }
 
 export const signInAction = async (formData: FormData) => {
@@ -159,4 +313,43 @@ export const signOutAction = async () => {
   const supabase = await createClient()
   await supabase.auth.signOut()
   return redirect("/sign-in")
+}
+
+export const upgradeSubscriptionAction = async (formData: FormData) => {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return encodedRedirect("error", "/sign-in", "User not authenticated")
+  }
+
+  const newRole = formData.get("role") as string
+  
+  if (!newRole) {
+    return encodedRedirect("error", "/upgrade", "Role is required")
+  }
+
+  // In a real app, you would handle payment processing here
+  // Set subscription expiry to 30 days from now
+  const subscriptionExpiry = new Date()
+  subscriptionExpiry.setDate(subscriptionExpiry.getDate() + 30)
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      role: newRole,
+      subscription_status: 'active',
+      subscription_expiry: subscriptionExpiry.toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id)
+
+  if (error) {
+    console.error("Subscription upgrade error:", error.message)
+    return encodedRedirect("error", "/upgrade", "Failed to upgrade subscription")
+  }
+
+  return encodedRedirect("success", "/upgrade", "Subscription upgraded successfully")
 }

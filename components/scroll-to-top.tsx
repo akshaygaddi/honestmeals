@@ -49,7 +49,7 @@ export function ScrollToTop() {
             onClick={scrollToTop}
             aria-label="Scroll to top"
         >
-            <ArrowUp className="h-5 w-5" />
+            {/* <ArrowUp className="h-5 w-5" /> */}
         </Button>
     )
 }
